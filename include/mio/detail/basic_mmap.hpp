@@ -1,6 +1,9 @@
 #ifndef MIO_BASIC_MMAP_HEADER
 #define MIO_BASIC_MMAP_HEADER
 
+#include <iterator>
+#include <string>
+
 #ifdef _WIN32
 # ifndef WIN32_LEAN_AND_MEAN
 #  define WIN32_LEAN_AND_MEAN
@@ -10,13 +13,17 @@
 # define INVALID_HANDLE_VALUE -1
 #endif // ifdef _WIN32
 
-#include <iterator>
-#include <string>
-
 namespace mio {
 namespace detail {
 
 size_t page_size();
+
+template<typename CharT> struct basic_mmap;
+
+template<typename CharT>
+bool operator==(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b);
+template<typename CharT>
+bool operator!=(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b);
 
 /**
  * Most of the logic in establishing a memory mapping is the same for both read-only and
@@ -27,15 +34,14 @@ template<typename CharT> struct basic_mmap
     using value_type = CharT;
     using size_type = int64_t;
     using reference = value_type&;
-    using const_reference = const reference;
+    using const_reference = const value_type&;
     using pointer = value_type*;
-    using const_pointer = const pointer;
+    using const_pointer = const value_type*;
     using difference_type = std::ptrdiff_t;
     using iterator = pointer;
     using const_iterator = const_pointer;
-    // TODO these don't seem to work with regular pointers
-    //using reverse_iterator = std::reverse_iterator<iterator>;
-    //using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     using iterator_category = std::random_access_iterator_tag;
 #ifdef _WIN32
     using handle_type = HANDLE;
@@ -56,8 +62,7 @@ private:
 
     // On POSIX, we only need a file handle to create a mapping, while on Windows
     // systems the file handle is necessary to retrieve a file mapping handle, but any
-    // subsequent operations on the mapped region must be done through the file mapping
-    // handle.
+    // subsequent operations on the mapped region must be done through the latter.
     handle_type file_handle_ = INVALID_HANDLE_VALUE;
 #if defined(_WIN32)
     handle_type file_mapping_handle_ = INVALID_HANDLE_VALUE;
@@ -110,6 +115,14 @@ public:
     const_iterator end() const noexcept { return begin() + length(); }
     const_iterator cend() const noexcept { return begin() + length(); }
 
+    reverse_iterator rbegin() { return reverse_iterator(end()); }
+    const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
+    const_reverse_iterator rcbegin() const { return const_reverse_iterator(end()); }
+
+    reverse_iterator rend() { return reverse_iterator(begin()); }
+    const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
+    const_reverse_iterator rcend() const { return const_reverse_iterator(begin()); }
+
     reference operator[](const size_type i) noexcept { return data_[i]; }
     const_reference operator[](const size_type i) const noexcept { return data_[i]; }
 
@@ -117,10 +130,14 @@ public:
         const access_mode mode, std::error_code& error);
     void map(const handle_type handle, const size_type offset, const size_type length,
         const access_mode mode, std::error_code& error);
-
     void unmap();
 
     void sync(std::error_code& error);
+
+    void swap(basic_mmap& other);
+
+    friend bool operator==<CharT>(const basic_mmap& a, const basic_mmap& b);
+    friend bool operator!=<CharT>(const basic_mmap& a, const basic_mmap& b);
 
 private:
 

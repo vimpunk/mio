@@ -39,4 +39,7 @@ int main(int argc, char** argv)
             assert(0);
         }
     }
+
+    auto rit = file_view.rbegin();
+    auto rend = file_view.rend();
 }

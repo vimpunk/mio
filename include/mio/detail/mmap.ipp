@@ -76,6 +76,30 @@ void basic_mmap_sink<CharT>::map(const handle_type handle, const size_type offse
 template<typename CharT>
 void basic_mmap_sink<CharT>::sync(std::error_code& error) { impl_.sync(error); }
 
+template<typename CharT>
+bool operator==(const basic_mmap_source<CharT>& a, const basic_mmap_source<CharT>& b)
+{
+    return a.impl_ == b.impl_;
+}
+
+template<typename CharT>
+bool operator!=(const basic_mmap_source<CharT>& a, const basic_mmap_source<CharT>& b)
+{
+    return a.impl_ != b.impl_;
+}
+
+template<typename CharT>
+bool operator==(const basic_mmap_sink<CharT>& a, const basic_mmap_sink<CharT>& b)
+{
+    return a.impl_ == b.impl_;
+}
+
+template<typename CharT>
+bool operator!=(const basic_mmap_sink<CharT>& a, const basic_mmap_sink<CharT>& b)
+{
+    return a.impl_ != b.impl_;
+}
+
 } // namespace mio
 
 #endif // MIO_MMAP_IMPL

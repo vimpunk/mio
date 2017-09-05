@@ -5,6 +5,18 @@
 
 namespace mio {
 
+template<typename CharT> class basic_mmap_source;
+template<typename CharT> class basic_mmap_sink;
+
+template<typename CharT>
+bool operator==(const basic_mmap_source<CharT>& a, const basic_mmap_source<CharT>& b);
+template<typename CharT>
+bool operator!=(const basic_mmap_source<CharT>& a, const basic_mmap_source<CharT>& b);
+template<typename CharT>
+bool operator==(const basic_mmap_sink<CharT>& a, const basic_mmap_sink<CharT>& b);
+template<typename CharT>
+bool operator!=(const basic_mmap_sink<CharT>& a, const basic_mmap_sink<CharT>& b);
+
 /**
  * When specifying a file to map, there is no need to worry about providing
  * offsets that are aligned with the operating system's page granularity, this is taken
@@ -23,9 +35,13 @@ namespace mio {
  */
 
 /** A read-only file memory mapping. */
-template<typename CharT> struct basic_mmap_source
+template<typename CharT> class basic_mmap_source
 {
     using impl_type = detail::basic_mmap<CharT>;
+    impl_type impl_;
+
+public:
+
     using value_type = typename impl_type::value_type;
     using size_type = typename impl_type::size_type;
     using reference = typename impl_type::reference;
@@ -35,14 +51,10 @@ template<typename CharT> struct basic_mmap_source
     using difference_type = typename impl_type::difference_type;
     using iterator = typename impl_type::iterator;
     using const_iterator = typename impl_type::const_iterator;
-    //using reverse_iterator = std::reverse_iterator<iterator>;
-    //using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     using iterator_category = typename impl_type::iterator_category;
     using handle_type = typename impl_type::handle_type;
-
-private:
-    impl_type impl_;
-public:
 
     basic_mmap_source() = default;
     basic_mmap_source(const std::string& path,
@@ -80,20 +92,33 @@ public:
     const_iterator end() const noexcept { return impl_.end(); }
     const_iterator cend() const noexcept { return impl_.cend(); }
 
+    const_reverse_iterator rbegin() const noexcept { return impl_.rbegin(); }
+    const_reverse_iterator crbegin() const noexcept { return impl_.crbegin(); }
+    const_reverse_iterator rend() const noexcept { return impl_.rend(); }
+    const_reverse_iterator crend() const noexcept { return impl_.crend(); }
+
     const_reference operator[](const size_type i) const noexcept { return impl_[i]; }
 
     void map(const std::string& path, const size_type offset,
         const size_type length, std::error_code& error);
     void map(const handle_type handle, const size_type offset,
         const size_type length, std::error_code& error);
-
     void unmap() { impl_.unmap(); }
+
+    void swap(basic_mmap_source& other) { impl_.swap(other.impl_); }
+
+    friend bool operator==<CharT>(const basic_mmap_source& a, const basic_mmap_source& b);
+    friend bool operator!=<CharT>(const basic_mmap_source& a, const basic_mmap_source& b);
 };
 
 /** A read-write file memory mapping. */
-template<typename CharT> struct basic_mmap_sink
+template<typename CharT> class basic_mmap_sink
 {
     using impl_type = detail::basic_mmap<CharT>;
+    impl_type impl_;
+
+public:
+
     using value_type = typename impl_type::value_type;
     using size_type = typename impl_type::size_type;
     using reference = typename impl_type::reference;
@@ -103,14 +128,10 @@ template<typename CharT> struct basic_mmap_sink
     using difference_type = typename impl_type::difference_type;
     using iterator = typename impl_type::iterator;
     using const_iterator = typename impl_type::const_iterator;
-    //using reverse_iterator = std::reverse_iterator<iterator>;
-    //using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     using iterator_category = typename impl_type::iterator_category;
     using handle_type = typename impl_type::handle_type;
-
-private:
-    impl_type impl_;
-public:
 
     basic_mmap_sink() = default;
     basic_mmap_sink(const std::string& path,
@@ -144,13 +165,21 @@ public:
     pointer data() noexcept { return impl_.data(); }
     const_pointer data() const noexcept { return impl_.data(); }
 
-    iterator begin() noexcept;
+    iterator begin() noexcept { return impl_.begin(); }
     const_iterator begin() const noexcept { return impl_.begin(); }
     const_iterator cbegin() const noexcept { return impl_.cbegin(); }
 
-    iterator end() noexcept;
+    iterator end() noexcept { return impl_.end(); }
     const_iterator end() const noexcept { return impl_.end(); }
     const_iterator cend() const noexcept { return impl_.cend(); }
+
+    reverse_iterator rbegin() noexcept { return impl_.rbegin(); }
+    const_reverse_iterator rbegin() const noexcept { return impl_.rbegin(); }
+    const_reverse_iterator crbegin() const noexcept { return impl_.crbegin(); }
+
+    reverse_iterator rend() noexcept { return impl_.rend(); }
+    const_reverse_iterator rend() const noexcept { return impl_.rend(); }
+    const_reverse_iterator crend() const noexcept { return impl_.crend(); }
 
     reference operator[](const size_type i) noexcept { return impl_[i]; }
     const_reference operator[](const size_type i) const noexcept { return impl_[i]; }
@@ -159,11 +188,15 @@ public:
         const size_type length, std::error_code& error);
     void map(const handle_type handle, const size_type offset,
         const size_type length, std::error_code& error);
+    void unmap() { impl_.unmap(); }
 
     /** Flushes the memory mapped page to disk. */
     void sync(std::error_code& error);
 
-    void unmap() { impl_.unmap(); }
+    void swap(basic_mmap_sink& other) { impl_.swap(other.impl_); }
+
+    friend bool operator==<CharT>(const basic_mmap_sink& a, const basic_mmap_sink& b);
+    friend bool operator!=<CharT>(const basic_mmap_sink& a, const basic_mmap_sink& b);
 };
 
 using mmap_sink = basic_mmap_sink<char>;

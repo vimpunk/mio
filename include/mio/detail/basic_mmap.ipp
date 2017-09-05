@@ -3,6 +3,8 @@
 
 #include "basic_mmap.hpp"
 
+#include <algorithm>
+
 #ifndef _WIN32
 # include <unistd.h>
 # include <fcntl.h>
@@ -328,6 +330,38 @@ bool basic_mmap<CharT>::is_mapped() const noexcept
 #else
     return is_open();
 #endif
+}
+
+template<typename CharT>
+void basic_mmap<CharT>::swap(basic_mmap<CharT>& other)
+{
+    if(this != &other)
+    {
+        using std::swap;
+        swap(data_, other.data_); 
+        swap(file_handle_, other.file_handle_); 
+#ifdef _WIN32
+        swap(file_mapping_handle_, other.file_mapping_handle_); 
+#endif
+        swap(length_, other.length_); 
+        swap(mapped_length_, other.mapped_length_); 
+    }
+}
+
+template<typename CharT>
+bool operator==(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b)
+{
+    if(a.is_mapped() && b.is_mapped())
+    {
+        return (a.size() == b.size()) && std::equal(a.begin(), a.end(), b.begin());
+    }
+    return !a.is_mapped() && !b.is_mapped();
+}
+
+template<typename CharT>
+bool operator!=(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b)
+{
+    return !(a == b);
 }
 
 } // namespace detail
