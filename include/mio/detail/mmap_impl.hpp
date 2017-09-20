@@ -18,20 +18,9 @@ namespace detail {
 
 size_t page_size();
 
-template<typename CharT> struct basic_mmap;
-
-template<typename CharT>
-bool operator==(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b);
-template<typename CharT>
-bool operator!=(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b);
-
-/**
- * Most of the logic in establishing a memory mapping is the same for both read-only and
- * read-write mappings, so they both inherit from basic_mmap.
- */
-template<typename CharT> struct basic_mmap
+struct mmap
 {
-    using value_type = CharT;
+    using value_type = char;
     using size_type = int64_t;
     using reference = value_type&;
     using const_reference = const value_type&;
@@ -68,18 +57,19 @@ private:
     handle_type file_mapping_handle_ = INVALID_HANDLE_VALUE;
 #endif
 
-    // Length requested by user, which may not be the length of the full mapping.
+    // Length, in bytes, requested by user, which may not be the length of the full
+    // mapping.
     size_type length_ = 0;
     size_type mapped_length_ = 0;
 
 public:
 
-    basic_mmap() = default;
-    basic_mmap(const basic_mmap&) = delete;
-    basic_mmap& operator=(const basic_mmap&) = delete;
-    basic_mmap(basic_mmap&&);
-    basic_mmap& operator=(basic_mmap&&);
-    ~basic_mmap();
+    mmap() = default;
+    mmap(const mmap&) = delete;
+    mmap& operator=(const mmap&) = delete;
+    mmap(mmap&&);
+    mmap& operator=(mmap&&);
+    ~mmap();
 
     /**
      * On *nix systems is_open and is_mapped are the same and don't actually say if
@@ -117,11 +107,11 @@ public:
 
     reverse_iterator rbegin() { return reverse_iterator(end()); }
     const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
-    const_reverse_iterator rcbegin() const { return const_reverse_iterator(end()); }
+    const_reverse_iterator crbegin() const { return const_reverse_iterator(end()); }
 
     reverse_iterator rend() { return reverse_iterator(begin()); }
     const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
-    const_reverse_iterator rcend() const { return const_reverse_iterator(begin()); }
+    const_reverse_iterator crend() const { return const_reverse_iterator(begin()); }
 
     reference operator[](const size_type i) noexcept { return data_[i]; }
     const_reference operator[](const size_type i) const noexcept { return data_[i]; }
@@ -134,10 +124,10 @@ public:
 
     void sync(std::error_code& error);
 
-    void swap(basic_mmap& other);
+    void swap(mmap& other);
 
-    friend bool operator==<CharT>(const basic_mmap& a, const basic_mmap& b);
-    friend bool operator!=<CharT>(const basic_mmap& a, const basic_mmap& b);
+    friend bool operator==(const mmap& a, const mmap& b);
+    friend bool operator!=(const mmap& a, const mmap& b);
 
 private:
 
@@ -158,6 +148,6 @@ private:
 } // namespace detail
 } // namespace mio
 
-#include "basic_mmap.ipp"
+#include "mmap_impl.ipp"
 
 #endif // MIO_BASIC_MMAP_HEADER

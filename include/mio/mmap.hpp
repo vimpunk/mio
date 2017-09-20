@@ -1,21 +1,9 @@
 #ifndef MIO_MMAP_HEADER
 #define MIO_MMAP_HEADER
 
-#include "detail/basic_mmap.hpp"
+#include "detail/mmap_impl.hpp"
 
 namespace mio {
-
-template<typename CharT> class basic_mmap_source;
-template<typename CharT> class basic_mmap_sink;
-
-template<typename CharT>
-bool operator==(const basic_mmap_source<CharT>& a, const basic_mmap_source<CharT>& b);
-template<typename CharT>
-bool operator!=(const basic_mmap_source<CharT>& a, const basic_mmap_source<CharT>& b);
-template<typename CharT>
-bool operator==(const basic_mmap_sink<CharT>& a, const basic_mmap_sink<CharT>& b);
-template<typename CharT>
-bool operator!=(const basic_mmap_sink<CharT>& a, const basic_mmap_sink<CharT>& b);
 
 /**
  * When specifying a file to map, there is no need to worry about providing
@@ -35,32 +23,41 @@ bool operator!=(const basic_mmap_sink<CharT>& a, const basic_mmap_sink<CharT>& b
  */
 
 /** A read-only file memory mapping. */
-template<typename CharT> class basic_mmap_source
+class mmap_source
 {
-    using impl_type = detail::basic_mmap<CharT>;
+    using impl_type = detail::mmap;
     impl_type impl_;
 
 public:
 
-    using value_type = typename impl_type::value_type;
-    using size_type = typename impl_type::size_type;
-    using reference = typename impl_type::reference;
-    using const_reference = typename impl_type::const_reference;
-    using pointer = typename impl_type::pointer;
-    using const_pointer = typename impl_type::const_pointer;
-    using difference_type = typename impl_type::difference_type;
-    using iterator = typename impl_type::iterator;
-    using const_iterator = typename impl_type::const_iterator;
+    using value_type = impl_type::value_type;
+    using size_type = impl_type::size_type;
+    using reference = impl_type::reference;
+    using const_reference = impl_type::const_reference;
+    using pointer = impl_type::pointer;
+    using const_pointer = impl_type::const_pointer;
+    using difference_type = impl_type::difference_type;
+    using iterator = impl_type::iterator;
+    using const_iterator = impl_type::const_iterator;
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-    using iterator_category = typename impl_type::iterator_category;
-    using handle_type = typename impl_type::handle_type;
+    using iterator_category = impl_type::iterator_category;
+    using handle_type = impl_type::handle_type;
 
-    basic_mmap_source() = default;
-    basic_mmap_source(const std::string& path,
-        const size_type offset, const size_type length);
-    basic_mmap_source(const handle_type handle,
-        const size_type offset, const size_type length);
+    mmap_source() = default;
+    mmap_source(const std::string& path, const size_type offset, const size_type length)
+    {
+        std::error_code error;
+        map(path, offset, length, error);
+        if(error) { throw error; }
+    }
+
+    mmap_source(const handle_type handle, const size_type offset, const size_type length)
+    {
+        std::error_code error;
+        map(handle, offset, length, error);
+        if(error) { throw error; }
+    }
 
     /**
      * On *nix systems is_open and is_mapped are the same and don't actually say if
@@ -74,7 +71,7 @@ public:
      */
     bool is_open() const noexcept { return impl_.is_open(); }
     bool is_mapped() const noexcept { return impl_.is_mapped(); }
-    bool empty() const noexcept { return impl_.is_empty(); }
+    bool empty() const noexcept { return impl_.empty(); }
 
     /**
      * size/length returns the logical length (i.e. the one user requested), while
@@ -100,44 +97,68 @@ public:
     const_reference operator[](const size_type i) const noexcept { return impl_[i]; }
 
     void map(const std::string& path, const size_type offset,
-        const size_type length, std::error_code& error);
+        const size_type length, std::error_code& error)
+    {
+        impl_.map(path, offset, length, impl_type::access_mode::read_only, error);
+    }
+
     void map(const handle_type handle, const size_type offset,
-        const size_type length, std::error_code& error);
+        const size_type length, std::error_code& error)
+    {
+        impl_.map(handle, offset, length, impl_type::access_mode::read_only, error);
+    }
+
     void unmap() { impl_.unmap(); }
 
-    void swap(basic_mmap_source& other) { impl_.swap(other.impl_); }
+    void swap(mmap_source& other) { impl_.swap(other.impl_); }
 
-    friend bool operator==<CharT>(const basic_mmap_source& a, const basic_mmap_source& b);
-    friend bool operator!=<CharT>(const basic_mmap_source& a, const basic_mmap_source& b);
+    friend bool operator==(const mmap_source& a, const mmap_source& b)
+    {
+        return a.impl_ == b.impl_;
+    }
+
+    friend bool operator!=(const mmap_source& a, const mmap_source& b)
+    {
+        return !(a == b);
+    }
 };
 
 /** A read-write file memory mapping. */
-template<typename CharT> class basic_mmap_sink
+class mmap_sink
 {
-    using impl_type = detail::basic_mmap<CharT>;
+    using impl_type = detail::mmap;
     impl_type impl_;
 
 public:
 
-    using value_type = typename impl_type::value_type;
-    using size_type = typename impl_type::size_type;
-    using reference = typename impl_type::reference;
-    using const_reference = typename impl_type::const_reference;
-    using pointer = typename impl_type::pointer;
-    using const_pointer = typename impl_type::const_pointer;
-    using difference_type = typename impl_type::difference_type;
-    using iterator = typename impl_type::iterator;
-    using const_iterator = typename impl_type::const_iterator;
+    using value_type = impl_type::value_type;
+    using size_type = impl_type::size_type;
+    using reference = impl_type::reference;
+    using const_reference = impl_type::const_reference;
+    using pointer = impl_type::pointer;
+    using const_pointer = impl_type::const_pointer;
+    using difference_type = impl_type::difference_type;
+    using iterator = impl_type::iterator;
+    using const_iterator = impl_type::const_iterator;
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-    using iterator_category = typename impl_type::iterator_category;
-    using handle_type = typename impl_type::handle_type;
+    using iterator_category = impl_type::iterator_category;
+    using handle_type = impl_type::handle_type;
 
-    basic_mmap_sink() = default;
-    basic_mmap_sink(const std::string& path,
-        const size_type offset, const size_type length);
-    basic_mmap_sink(const handle_type handle,
-        const size_type offset, const size_type length);
+    mmap_sink() = default;
+    mmap_sink(const std::string& path, const size_type offset, const size_type length)
+    {
+        std::error_code error;
+        map(path, offset, length, error);
+        if(error) { throw error; }
+    }
+
+    mmap_sink(const handle_type handle, const size_type offset, const size_type length)
+    {
+        std::error_code error;
+        map(handle, offset, length, error);
+        if(error) { throw error; }
+    }
 
     /**
      * On *nix systems is_open and is_mapped are the same and don't actually say if
@@ -151,7 +172,7 @@ public:
      */
     bool is_open() const noexcept { return impl_.is_open(); }
     bool is_mapped() const noexcept { return impl_.is_mapped(); }
-    bool empty() const noexcept { return impl_.is_empty(); }
+    bool empty() const noexcept { return impl_.empty(); }
 
     /**
      * size/length returns the logical length (i.e. the one user requested), while
@@ -185,34 +206,35 @@ public:
     const_reference operator[](const size_type i) const noexcept { return impl_[i]; }
 
     void map(const std::string& path, const size_type offset,
-        const size_type length, std::error_code& error);
+        const size_type length, std::error_code& error)
+    {
+        impl_.map(path, offset, length, impl_type::access_mode::read_only, error);
+    }
+
     void map(const handle_type handle, const size_type offset,
-        const size_type length, std::error_code& error);
+        const size_type length, std::error_code& error)
+    {
+        impl_.map(handle, offset, length, impl_type::access_mode::read_write, error);
+    }
+
     void unmap() { impl_.unmap(); }
 
     /** Flushes the memory mapped page to disk. */
-    void sync(std::error_code& error);
+    void sync(std::error_code& error) { impl_.sync(error); }
 
-    void swap(basic_mmap_sink& other) { impl_.swap(other.impl_); }
+    void swap(mmap_sink& other) { impl_.swap(other.impl_); }
 
-    friend bool operator==<CharT>(const basic_mmap_sink& a, const basic_mmap_sink& b);
-    friend bool operator!=<CharT>(const basic_mmap_sink& a, const basic_mmap_sink& b);
+    friend bool operator==(const mmap_sink& a, const mmap_sink& b)
+    {
+        return a.impl_ == b.impl_;
+    }
+
+    friend bool operator!=(const mmap_sink& a, const mmap_sink& b)
+    {
+        return !(a == b);
+    }
 };
 
-using mmap_sink = basic_mmap_sink<char>;
-using mmap_source = basic_mmap_source<char>;
-
-using wmmap_sink = basic_mmap_sink<wchar_t>;
-using wmmap_source = basic_mmap_source<wchar_t>;
-
-using u16mmap_sink = basic_mmap_sink<char16_t>;
-using u16mmap_source = basic_mmap_source<char16_t>;
-
-using u32mmap_sink = basic_mmap_sink<char32_t>;
-using u32mmap_source = basic_mmap_source<char32_t>;
-
 } // namespace mio
-
-#include "detail/mmap.ipp"
 
 #endif // MIO_MMAP_HEADER

@@ -8,17 +8,17 @@
 
 int main(int argc, char** argv)
 {
-    const char* path = argc >= 2 ? argv[1] : ".";
+    const char* test_file_name = argc >= 2 ? argv[1] : "test-file";
 
-    std::error_code error;
     std::string buffer(0x4000 - 250, 'M');
 
-    std::ofstream file(path);
+    std::ofstream file(test_file_name);
     file << buffer;
     file.close();
 
+    std::error_code error;
     mio::mmap_source file_view;
-    file_view.map(path, 0, buffer.size(), error);
+    file_view.map(test_file_name, 0, buffer.size(), error);
     if(error)
     {
         const auto& errmsg = error.message();
@@ -39,7 +39,4 @@ int main(int argc, char** argv)
             assert(0);
         }
     }
-
-    auto rit = file_view.rbegin();
-    auto rend = file_view.rend();
 }
