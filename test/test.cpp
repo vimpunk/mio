@@ -6,9 +6,9 @@
 #include <cassert>
 #include <system_error>
 
-int main(int argc, char** argv)
+int main()
 {
-    const char* test_file_name = argc >= 2 ? argv[1] : "test-file";
+    const char* test_file_name = "test-file";
 
     std::string buffer(0x4000 - 250, 'M');
 
@@ -17,8 +17,7 @@ int main(int argc, char** argv)
     file.close();
 
     std::error_code error;
-    mio::mmap_source file_view;
-    file_view.map(test_file_name, 0, buffer.size(), error);
+    mio::mmap_source file_view = mio::make_mmap_source(test_file_name, 0, buffer.size(), error);
     if(error)
     {
         const auto& errmsg = error.message();
@@ -39,4 +38,10 @@ int main(int argc, char** argv)
             assert(0);
         }
     }
+
+    // see if mapping an invalid file results in an error
+    mio::make_mmap_source("garbage-that-hopefully-doesn't exist", 0, 0, error);
+    assert(error);
+
+    std::printf("all tests passed!\n");
 }

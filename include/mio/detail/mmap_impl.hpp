@@ -3,6 +3,7 @@
 
 #include <iterator>
 #include <string>
+#include <system_error>
 
 #ifdef _WIN32
 # ifndef WIN32_LEAN_AND_MEAN
@@ -71,25 +72,10 @@ public:
     mmap& operator=(mmap&&);
     ~mmap();
 
-    /**
-     * On *nix systems is_open and is_mapped are the same and don't actually say if
-     * the file itself is open or closed, they only refer to the mapping. This is
-     * because a mapping remains valid (as long as it's not unmapped) even if another
-     * entity closes the file which is being mapped.
-     *
-     * On Windows, however, in order to map a file, both an active file handle and a
-     * mapping handle is required, so is_open checks for a valid file handle, while
-     * is_mapped checks for a valid mapping handle.
-     */
     bool is_open() const noexcept;
     bool is_mapped() const noexcept;
     bool empty() const noexcept { return length() == 0; }
 
-    /**
-     * size/length returns the logical length (i.e. the one user requested), while
-     * mapped_length returns the actual mapped length, which is usually a multiple of
-     * the OS' page size.
-     */
     size_type size() const noexcept { return length_; }
     size_type length() const noexcept { return length_; }
     size_type mapped_length() const noexcept { return mapped_length_; }
@@ -116,8 +102,6 @@ public:
     reference operator[](const size_type i) noexcept { return data_[i]; }
     const_reference operator[](const size_type i) const noexcept { return data_[i]; }
 
-    void map(const std::string& path, const size_type offset, const size_type length,
-        const access_mode mode, std::error_code& error);
     void map(const handle_type handle, const size_type offset, const size_type length,
         const access_mode mode, std::error_code& error);
     void unmap();
@@ -131,9 +115,6 @@ public:
 
 private:
 
-    static handle_type open_file(const std::string& path,
-        const access_mode mode, std::error_code& error);
-
     pointer get_mapping_start() noexcept;
 
     /** NOTE: file_handle_ must be valid. */
@@ -144,6 +125,10 @@ private:
 
     void verify_file_handle(std::error_code& error) const noexcept;
 };
+
+template<typename Path>
+mmap::handle_type open_file(const Path& path,
+    const mmap::access_mode mode, std::error_code& error);
 
 } // namespace detail
 } // namespace mio

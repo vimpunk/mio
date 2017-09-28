@@ -4,12 +4,15 @@
 #include "mmap_impl.hpp"
 
 #include <algorithm>
+#include <type_traits>
 
 #ifndef _WIN32
 # include <unistd.h>
 # include <fcntl.h>
 # include <sys/mman.h>
 # include <sys/stat.h>
+# include <cassert>
+# include <cstdint>
 #endif
 
 namespace mio {
@@ -103,45 +106,6 @@ inline mmap& mmap::operator=(mmap&& other)
 #endif
     }
     return *this;
-}
-
-inline void mmap::map(const std::string& path, const size_type offset,
-    const size_type length, const access_mode mode, std::error_code& error)
-{
-    if(!path.empty() && !is_open())
-    {
-        error.clear();
-        const auto handle = open_file(path, mode, error);
-        if(error) { return; }
-        map(handle, offset, length, mode, error);
-    }
-}
-
-inline mmap::handle_type mmap::open_file(const std::string& path,
-    const mmap::access_mode mode, std::error_code& error)
-{
-#if defined(_WIN32)
-    const auto handle = ::CreateFile(path.c_str(),
-        mode == mmap::access_mode::read_only
-            ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        0,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
-        0);
-    if(handle == INVALID_HANDLE_VALUE)
-    {
-        error = last_error();
-    }
-#else
-    const auto handle = ::open(path.c_str(),
-        mode == mmap::access_mode::read_only ? O_RDONLY : O_RDWR);
-    if(handle == -1)
-    {
-        error = last_error();
-    }
-#endif
-    return handle;
 }
 
 inline void mmap::map(const handle_type handle, const size_type offset,
@@ -269,13 +233,13 @@ inline void mmap::unmap()
 inline mmap::size_type mmap::query_file_size(std::error_code& error) noexcept
 {
 #ifdef _WIN32
-    PLARGE_INTEGER file_size;
+    LARGE_INTEGER file_size;
     if(::GetFileSizeEx(file_handle_, &file_size) == 0)
     {
         error = last_error();
         return 0;
     }
-    return file_size;
+	return static_cast<size_type>(file_size.QuadPart);
 #else
     struct stat sbuf;
     if(::fstat(file_handle_, &sbuf) == -1)
@@ -343,6 +307,53 @@ inline bool operator==(const mmap& a, const mmap& b)
 inline bool operator!=(const mmap& a, const mmap& b)
 {
     return !(a == b);
+}
+
+template<
+    typename String,
+    typename = decltype(std::declval<String>().data()),
+    typename = typename std::enable_if<!std::is_same<const char*, String>::value>::type
+> const char* c_str(const String& path)
+{
+    return path.data();
+}
+
+template<
+    typename String,
+    typename = typename std::enable_if<
+        std::is_same<const char*, typename std::decay<String>::type>::value
+    >::type
+> const char* c_str(String path)
+{
+    return path;
+}
+
+template<typename Path>
+mmap::handle_type open_file(const Path& path,
+    const mmap::access_mode mode, std::error_code& error)
+{
+#if defined(_WIN32)
+    const auto handle = ::CreateFile(c_str(path),
+        mode == mmap::access_mode::read_only
+            ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        0,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        0);
+    if(handle == INVALID_HANDLE_VALUE)
+    {
+        error = last_error();
+    }
+#else
+    const auto handle = ::open(c_str(path),
+        mode == mmap::access_mode::read_only ? O_RDONLY : O_RDWR);
+    if(handle == -1)
+    {
+        error = last_error();
+    }
+#endif
+    return handle;
 }
 
 } // namespace detail
