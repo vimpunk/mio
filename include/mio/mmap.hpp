@@ -2,23 +2,10 @@
 #define MIO_MMAP_HEADER
 
 #include "detail/mmap_impl.hpp"
+
 #include <system_error>
 
 namespace mio {
-
-/**
- * When specifying a file to map, there is no need to worry about providing
- * offsets that are aligned with the operating system's page granularity, this is taken
- * care of within the class in both cases.
- *
- * Both classes have single-ownership semantics, and transferring ownership may be
- * accomplished by moving the mmap instance.
- *
- * Remapping a file is possible, but unmap must be called before that.
- *
- * Both classes' destructors unmap the file. However, mmap_sink's destructor does not
- * sync the mapped file view to disk, this has to be done manually with a call tosink.
- */
 
 /** A read-only file memory mapping. */
 class mmap_source
@@ -42,6 +29,17 @@ public:
     using iterator_category = impl_type::iterator_category;
     using handle_type = impl_type::handle_type;
 
+    /**
+     * This value may be provided as the `length` parameter to the constructor or
+     * `map`, in which case a memory mapping of the entire file is created.
+     */
+    static constexpr size_type use_full_file_size = impl_type::use_full_file_size;
+
+    /**
+     * The default constructed mmap object is in a non-mapped state, that is, any
+     * operations that attempt to access nonexistent underlying date will result in
+     * undefined behaviour/segmentation faults.
+     */
     mmap_source() = default;
 
     /**
@@ -63,27 +61,31 @@ public:
     }
 
     /**
-     * `mmap_source` has single-ownership semantics, so transferring ownership may only
-     * be accomplished by moving the instance.
+     * This class has single-ownership semantics, so transferring ownership may only be
+     * accomplished by moving the object.
      */
-    mmap_source(const mmap_source&) = delete;
     mmap_source(mmap_source&&) = default;
+    mmap_source& operator=(mmap_source&&) = default;
 
     /** The destructor invokes unmap. */
     ~mmap_source() = default;
 
     /**
-     * On UNIX systems `is_open` and `is_mapped` are the same and don't actually say if
-     * the file itself is open or closed, they only refer to the mapping. This is
-     * because a mapping remains valid (as long as it's not unmapped) even if another
-     * entity closes the file which is being mapped.
-     *
-     * On Windows, however, in order to map a file, both an active file handle and a
-     * mapping handle is required, so `is_open` checks for a valid file handle, while
-     * `is_mapped` checks for a valid mapping handle.
+     * On UNIX systems 'file_handle' and 'mapping_handle' are the same. On Windows,
+     * however, a mapped region of a file gets its own handle, which is returned by
+     * 'mapping_handle'.
      */
+    handle_type file_handle() const noexcept { return impl_.file_handle(); }
+    handle_type mapping_handle() const noexcept { return impl_.mapping_handle(); }
+
+    /** Returns whether a valid memory mapping has been created. */
     bool is_open() const noexcept { return impl_.is_open(); }
-    bool is_mapped() const noexcept { return impl_.is_mapped(); }
+
+    /**
+     * Returns if the length that was mapped was 0, in which case no mapping was
+     * established, i.e. `is_open` returns false. This function is provided so that
+     * this class has some Container semantics.
+     */
     bool empty() const noexcept { return impl_.empty(); }
 
     /**
@@ -120,13 +122,40 @@ public:
 
     /**
      * Returns a reference to the `i`th byte from the first requested byte (as returned
-     * by `data`). If this is invoked when no valid memory mapping has been established
+     * by `data`). If this is invoked when no valid memory mapping has been created
      * prior to this call, undefined behaviour ensues.
      */
     const_reference operator[](const size_type i) const noexcept { return impl_[i]; }
 
     /**
-     * Establishes a read-only memory mapping.
+     * Establishes a read-only memory mapping. If the mapping is unsuccesful, the
+     * reason is reported via `error` and the object remains in a state as if this
+     * function hadn't been called.
+     *
+     * `path`, which must be a path to an existing file, is used to retrieve a file
+     * handle (which is closed when the object destructs or `unmap` is called), which is
+     * then used to memory map the requested region. Upon failure, `error` is set to
+     * indicate the reason and the object remains in an unmapped state.
+     *
+     * When specifying `offset`, there is no need to worry about providing
+     * a value that is aligned with the operating system's page allocation granularity.
+     * This is adjusted by the implementation such that the first requested byte (as
+     * returned by `data` or `begin`), so long as `offset` is valid, will be at `offset`
+     * from the start of the file.
+     *
+     * If `length` is `use_full_file_size`, a mapping of the entire file is created.
+     */
+    template<typename String>
+    void map(const String& path, const size_type offset,
+        const size_type length, std::error_code& error)
+    {
+        impl_.map(path, offset, length, impl_type::access_mode::read_only, error);
+    }
+
+    /**
+     * Establishes a read-only memory mapping. If the mapping is unsuccesful, the
+     * reason is reported via `error` and the object remains in a state as if this
+     * function hadn't been called.
      *
      * `handle` must be a valid file handle, which is then used to memory map the
      * requested region. Upon failure, `error` is set to indicate the reason and the
@@ -137,6 +166,8 @@ public:
      * This is adjusted by the implementation such that the first requested byte (as
      * returned by `data` or `begin`), so long as `offset` is valid, will be at `offset`
      * from the start of the file.
+     *
+     * If `length` is `use_full_file_size`, a mapping of the entire file is created.
      */
     void map(const handle_type handle, const size_type offset,
         const size_type length, std::error_code& error)
@@ -145,9 +176,13 @@ public:
     }
 
     /**
-     * If a valid memory mapping has been established prior to this call, this call
-     * instructs the kernel to unmap the memory region and dissasociate this object
+     * If a valid memory mapping has been created prior to this call, this call
+     * instructs the kernel to unmap the memory region and disassociate this object
      * from the file.
+     *
+     * The file handle associated with the file that is mapped is only closed if the
+     * mapping was created using a file path. If, on the other hand, an existing
+     * file handle was used to create the mapping, the file handle is not closed.
      */
     void unmap() { impl_.unmap(); }
 
@@ -185,7 +220,18 @@ public:
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     using iterator_category = impl_type::iterator_category;
     using handle_type = impl_type::handle_type;
+    
+    /**
+     * This value may be provided as the `length` parameter to the constructor or
+     * `map`, in which case a memory mapping of the entire file is created.
+     */
+    static constexpr size_type use_full_file_size = impl_type::use_full_file_size;
 
+    /**
+     * The default constructed mmap object is in a non-mapped state, that is, any
+     * operations that attempt to access nonexistent underlying date will result in
+     * undefined behaviour/segmentation faults.
+     */
     mmap_sink() = default;
 
     /**
@@ -207,31 +253,35 @@ public:
     }
 
     /**
-     * `mmap_sink` has single-ownership semantics, so transferring ownership may only
-     * be accomplished by moving the instance.
+     * This class has single-ownership semantics, so transferring ownership may only be
+     * accomplished by moving the object.
      */
-    mmap_sink(const mmap_sink&) = delete;
     mmap_sink(mmap_sink&&) = default;
+    mmap_sink& operator=(mmap_sink&&) = default;
 
     /**
-     * The destructor invokes unmap, but does NOT invoke `sync`. Thus, if changes have
-     * been made to the mapped region, `sync` needs to be called in order to persist
-     * any writes to disk.
+     * The destructor invokes unmap, but does NOT invoke `sync`. Thus, if the mapped
+     * region has been written to, `sync` needs to be called in order to persist the
+     * changes to disk.
      */
     ~mmap_sink() = default;
 
     /**
-     * On UNIX systems `is_open` and `is_mapped` are the same and don't actually say if
-     * the file itself is open or closed, they only refer to the mapping. This is
-     * because a mapping remains valid (as long as it's not unmapped) even if another
-     * entity closes the file which is being mapped.
-     *
-     * On Windows, however, in order to map a file, both an active file handle and a
-     * mapping handle is required, so `is_open` checks for a valid file handle, while
-     * `is_mapped` checks for a valid mapping handle.
+     * On UNIX systems 'file_handle' and 'mapping_handle' are the same. On Windows,
+     * however, a mapped region of a file gets its own handle, which is returned by
+     * 'mapping_handle'.
      */
+    handle_type file_handle() const noexcept { return impl_.file_handle(); }
+    handle_type mapping_handle() const noexcept { return impl_.mapping_handle(); }
+
+    /** Returns whether a valid memory mapping has been created. */
     bool is_open() const noexcept { return impl_.is_open(); }
-    bool is_mapped() const noexcept { return impl_.is_mapped(); }
+
+    /**
+     * Returns if the length that was mapped was 0, in which case no mapping was
+     * established, i.e. `is_open` returns false. This function is provided so that
+     * this class has some Container semantics.
+     */
     bool empty() const noexcept { return impl_.empty(); }
 
     /**
@@ -273,14 +323,41 @@ public:
 
     /**
      * Returns a reference to the `i`th byte from the first requested byte (as returned
-     * by `data`). If this is invoked when no valid memory mapping has been established
+     * by `data`). If this is invoked when no valid memory mapping has been created
      * prior to this call, undefined behaviour ensues.
      */
     reference operator[](const size_type i) noexcept { return impl_[i]; }
     const_reference operator[](const size_type i) const noexcept { return impl_[i]; }
 
     /**
-     * Establishes a read-only memory mapping.
+     * Establishes a read-write memory mapping. If the mapping is unsuccesful, the
+     * reason is reported via `error` and the object remains in a state as if this
+     * function hadn't been called.
+     *
+     * `path`, which must be a path to an existing file, is used to retrieve a file
+     * handle (which is closed when the object destructs or `unmap` is called), which is
+     * then used to memory map the requested region. Upon failure, `error` is set to
+     * indicate the reason and the object remains in an unmapped state.
+     *
+     * When specifying `offset`, there is no need to worry about providing
+     * a value that is aligned with the operating system's page allocation granularity.
+     * This is adjusted by the implementation such that the first requested byte (as
+     * returned by `data` or `begin`), so long as `offset` is valid, will be at `offset`
+     * from the start of the file.
+     *
+     * If `length` is `use_full_file_size`, a mapping of the entire file is created.
+     */
+    template<typename String>
+    void map(const String& path, const size_type offset,
+        const size_type length, std::error_code& error)
+    {
+        impl_.map(path, offset, length, impl_type::access_mode::read_only, error);
+    }
+
+    /**
+     * Establishes a read-write memory mapping. If the mapping is unsuccesful, the
+     * reason is reported via `error` and the object remains in a state as if this
+     * function hadn't been called.
      *
      * `handle` must be a valid file handle, which is then used to memory map the
      * requested region. Upon failure, `error` is set to indicate the reason and the
@@ -291,6 +368,8 @@ public:
      * This is adjusted by the implementation such that the first requested byte (as
      * returned by `data` or `begin`), so long as `offset` is valid, will be at `offset`
      * from the start of the file.
+     *
+     * If `length` is `use_full_file_size`, a mapping of the entire file is created.
      */
     void map(const handle_type handle, const size_type offset,
         const size_type length, std::error_code& error)
@@ -299,9 +378,13 @@ public:
     }
 
     /**
-     * If a valid memory mapping has been established prior to this call, this call
-     * instructs the kernel to unmap the memory region and dissasociate this object
+     * If a valid memory mapping has been created prior to this call, this call
+     * instructs the kernel to unmap the memory region and disassociate this object
      * from the file.
+     *
+     * The file handle associated with the file that is mapped is only closed if the
+     * mapping was created using a file path. If, on the other hand, an existing
+     * file handle was used to create the mapping, the file handle is not closed.
      */
     void unmap() { impl_.unmap(); }
 
@@ -322,39 +405,34 @@ public:
 };
 
 /**
- * Since `mmap_source` works on the file descriptor/handle level of abstraction, a
- * factory method is provided for the case when a file needs to be mapped using a file
- * path.
+ * Convenience factory method.
  *
- * Path may be `std::string`, `std::string_view`, `const char*`,
- * `std::filesystem::path`, `std::vector<char>`, or similar.
+ * MappingToken may be a String (`std::string`, `std::string_view`, `const char*`,
+ * `std::filesystem::path`, `std::vector<char>`, or similar), or a
+ * mmap_source::file_handle.
  */
-template<typename Path>
-mmap_source make_mmap_source(const Path& path, mmap_source::size_type offset,
+template<typename MappingToken>
+mmap_source make_mmap_source(const MappingToken& token, mmap_source::size_type offset,
     mmap_source::size_type length, std::error_code& error)
 {
-    const auto handle = detail::open_file(path,
-        detail::mmap::access_mode::read_only, error);
     mmap_source mmap;
-    if(!error) { mmap.map(handle, offset, length, error); }
+    mmap.map(token, offset, length, error);
     return mmap;
 }
 
 /**
- * Since `mmap_sink` works on the file descriptor/handle level of abstraction, a factory
- * method is provided for the case when a file needs to be mapped using a file path.
+ * Convenience factory method.
  *
- * Path may be `std::string`, `std::string_view`, `const char*`,
- * `std::filesystem::path`, `std::vector<char>`, or similar.
+ * MappingToken may be a String (`std::string`, `std::string_view`, `const char*`,
+ * `std::filesystem::path`, `std::vector<char>`, or similar), or a
+ * mmap_sink::file_handle.
  */
-template<typename Path>
-mmap_sink make_mmap_sink(const Path& path, mmap_sink::size_type offset,
+template<typename MappingToken>
+mmap_sink make_mmap_sink(const MappingToken& token, mmap_sink::size_type offset,
     mmap_sink::size_type length, std::error_code& error)
 {
-    const auto handle = detail::open_file(path,
-        detail::mmap::access_mode::read_write, error);
     mmap_sink mmap;
-    if(!error) { mmap.map(handle, offset, length, error); }
+    mmap.map(token, offset, length, error);
     return mmap;
 }
 

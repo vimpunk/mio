@@ -39,6 +39,8 @@ struct mmap
     using handle_type = int;
 #endif
 
+    static constexpr size_type use_full_file_size = 0;
+
     enum class access_mode
     {
         read_only,
@@ -63,6 +65,12 @@ private:
     size_type length_ = 0;
     size_type mapped_length_ = 0;
 
+    // Letting user map a file using both an existing file handle and a path introcudes
+    // some complexity in that we must not close the file handle if user provided it,
+    // but we must close it if we obtained it using the provided path. For this reason,
+    // this flag is used to determine when to close file_handle_.
+    bool is_handle_internal_;
+
 public:
 
     mmap() = default;
@@ -71,6 +79,9 @@ public:
     mmap(mmap&&);
     mmap& operator=(mmap&&);
     ~mmap();
+
+    handle_type file_handle() const noexcept { return file_handle_; }
+    handle_type mapping_handle() const noexcept;
 
     bool is_open() const noexcept;
     bool is_mapped() const noexcept;
@@ -102,9 +113,13 @@ public:
     reference operator[](const size_type i) noexcept { return data_[i]; }
     const_reference operator[](const size_type i) const noexcept { return data_[i]; }
 
+    template<typename String>
+    void map(const String& path, const size_type offset, const size_type length,
+        const access_mode mode, std::error_code& error);
     void map(const handle_type handle, const size_type offset, const size_type length,
         const access_mode mode, std::error_code& error);
     void unmap();
+    void close();
 
     void sync(std::error_code& error);
 
@@ -117,18 +132,9 @@ private:
 
     pointer get_mapping_start() noexcept;
 
-    /** NOTE: file_handle_ must be valid. */
-    size_type query_file_size(std::error_code& error) noexcept;
-
-    void map(const size_type offset, const size_type length,
+    void map(const size_type offset, size_type length,
         const access_mode mode, std::error_code& error);
-
-    void verify_file_handle(std::error_code& error) const noexcept;
 };
-
-template<typename Path>
-mmap::handle_type open_file(const Path& path,
-    const mmap::access_mode mode, std::error_code& error);
 
 } // namespace detail
 } // namespace mio
