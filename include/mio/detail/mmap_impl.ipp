@@ -37,6 +37,8 @@
 namespace mio {
 namespace detail {
 
+using handle_type = basic_mmap<char>::handle_type;
+
 #if defined(_WIN32)
 inline DWORD int64_high(int64_t n) noexcept
 {
@@ -64,11 +66,11 @@ inline size_t page_size()
     return page_size;
 }
 
-inline size_t make_page_aligned(size_t offset) noexcept
+inline size_t make_page_aligned(size_t t) noexcept
 {
     const static size_t page_size_ = page_size();
     // Use integer division to round down to the nearest page alignment.
-    return offset / page_size_ * page_size_;
+    return t / page_size_ * page_size_;
 }
 
 inline std::error_code last_error() noexcept
@@ -83,8 +85,8 @@ inline std::error_code last_error() noexcept
 }
 
 template<typename Path>
-mmap::handle_type open_file(const Path& path,
-    const mmap::access_mode mode, std::error_code& error)
+handle_type open_file(const Path& path,
+    const basic_mmap<char>::access_mode mode, std::error_code& error)
 {
     error.clear();
     if(detail::empty(path))
@@ -94,7 +96,7 @@ mmap::handle_type open_file(const Path& path,
     }
 #if defined(_WIN32)
     const auto handle = ::CreateFile(c_str(path),
-        mode == mmap::access_mode::read_only
+        mode == basic_mmap<char>::access_mode::read_only
             ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
         0,
@@ -103,7 +105,7 @@ mmap::handle_type open_file(const Path& path,
         0);
 #else
     const auto handle = ::open(c_str(path),
-        mode == mmap::access_mode::read_only ? O_RDONLY : O_RDWR);
+        mode == basic_mmap<char>::access_mode::read_only ? O_RDONLY : O_RDWR);
 #endif
     if(handle == INVALID_HANDLE_VALUE)
     {
@@ -112,7 +114,7 @@ mmap::handle_type open_file(const Path& path,
     return handle;
 }
 
-inline mmap::size_type query_file_size(mmap::handle_type handle, std::error_code& error)
+int64_t query_file_size(handle_type handle, std::error_code& error)
 {
     error.clear();
 #ifdef _WIN32
@@ -122,7 +124,7 @@ inline mmap::size_type query_file_size(mmap::handle_type handle, std::error_code
         error = last_error();
         return 0;
     }
-	return static_cast<mmap::size_type>(file_size.QuadPart);
+	return static_cast<int64_t>(file_size.QuadPart);
 #else
     struct stat sbuf;
     if(::fstat(handle, &sbuf) == -1)
@@ -134,14 +136,16 @@ inline mmap::size_type query_file_size(mmap::handle_type handle, std::error_code
 #endif
 }
 
-// -- mmap --
+// -- basic_mmap --
 
-inline mmap::~mmap()
+template<typename CharT>
+basic_mmap<CharT>::~basic_mmap()
 {
     unmap();
 }
 
-inline mmap::mmap(mmap&& other)
+template<typename CharT>
+basic_mmap<CharT>::basic_mmap(basic_mmap<CharT>&& other)
     : data_(std::move(other.data_))
     , length_(std::move(other.length_))
     , mapped_length_(std::move(other.mapped_length_))
@@ -159,7 +163,8 @@ inline mmap::mmap(mmap&& other)
 #endif
 }
 
-inline mmap& mmap::operator=(mmap&& other)
+template<typename CharT>
+basic_mmap<CharT>& basic_mmap<CharT>::operator=(basic_mmap<CharT>&& other)
 {
     if(this != &other)
     {
@@ -174,7 +179,7 @@ inline mmap& mmap::operator=(mmap&& other)
 #endif
         is_handle_internal_ = std::move(other.is_handle_internal_);
 
-        // The moved from mmap's fields need to be reset, because otherwise other's
+        // The moved from basic_mmap's fields need to be reset, because otherwise other's
         // destructor will unmap the same mapping that was just moved into this.
         other.data_ = nullptr;
         other.length_ = other.mapped_length_ = 0;
@@ -187,7 +192,9 @@ inline mmap& mmap::operator=(mmap&& other)
     return *this;
 }
 
-inline mmap::handle_type mmap::mapping_handle() const noexcept
+template<typename CharT>
+typename basic_mmap<CharT>::handle_type
+basic_mmap<CharT>::mapping_handle() const noexcept
 {
 #ifdef _WIN32
     return file_mapping_handle_;
@@ -196,9 +203,10 @@ inline mmap::handle_type mmap::mapping_handle() const noexcept
 #endif
 }
 
+template<typename CharT>
 template<typename String>
-void mmap::map(const String& path, const size_type offset, const size_type length,
-    const access_mode mode, std::error_code& error)
+void basic_mmap<CharT>::map(String& path, size_type offset,
+    size_type length, access_mode mode, std::error_code& error)
 {
     error.clear();
     if(detail::empty(path))
@@ -216,8 +224,9 @@ void mmap::map(const String& path, const size_type offset, const size_type lengt
     }
 }
 
-inline void mmap::map(const handle_type handle, const size_type offset,
-    size_type length, const access_mode mode, std::error_code& error)
+template<typename CharT>
+void basic_mmap<CharT>::map(handle_type handle, size_type offset,
+    size_type length, access_mode mode, std::error_code& error)
 {
     error.clear();
     if(handle == INVALID_HANDLE_VALUE)
@@ -244,7 +253,8 @@ inline void mmap::map(const handle_type handle, const size_type offset,
     map(offset, length, mode, error);
 }
 
-inline void mmap::map(const size_type offset, const size_type length,
+template<typename CharT>
+void basic_mmap<CharT>::map(const size_type offset, const size_type length,
     const access_mode mode, std::error_code& error)
 {
     const size_type aligned_offset = make_page_aligned(offset);
@@ -279,7 +289,7 @@ inline void mmap::map(const size_type offset, const size_type length,
     const pointer mapping_start = static_cast<pointer>(::mmap(
         0, // Don't give hint as to where to map.
         length_to_map,
-        mode == mmap::access_mode::read_only ? PROT_READ : PROT_WRITE,
+        mode == basic_mmap<CharT>::access_mode::read_only ? PROT_READ : PROT_WRITE,
         MAP_SHARED, // TODO do we want to share it?
         file_handle_,
         aligned_offset));
@@ -294,7 +304,8 @@ inline void mmap::map(const size_type offset, const size_type length,
     mapped_length_ = length_to_map;
 }
 
-inline void mmap::sync(std::error_code& error)
+template<typename CharT>
+void basic_mmap<CharT>::sync(std::error_code& error)
 {
     error.clear();
     if(!is_open())
@@ -324,7 +335,8 @@ inline void mmap::sync(std::error_code& error)
 #endif
 }
 
-inline void mmap::unmap()
+template<typename CharT>
+void basic_mmap<CharT>::unmap()
 {
     if(!is_open()) { return; }
     // TODO do we care about errors here?
@@ -341,7 +353,7 @@ inline void mmap::unmap()
 
     // If file handle was obtained by our opening it (when map is called with a path,
     // rather than an existing file handle), we need to close it, otherwise it must not
-    // be closed as it may still be used outside of this mmap instance.
+    // be closed as it may still be used outside of this basic_mmap instance.
     if(is_handle_internal_)
     {
 #ifdef _WIN32
@@ -360,19 +372,22 @@ inline void mmap::unmap()
 #endif
 }
 
-inline mmap::pointer mmap::get_mapping_start() noexcept
+template<typename CharT>
+typename basic_mmap<CharT>::pointer basic_mmap<CharT>::get_mapping_start() noexcept
 {
     if(!data_) { return nullptr; }
     const auto offset = mapped_length_ - length_;
     return data_ - offset;
 }
 
-inline bool mmap::is_open() const noexcept
+template<typename CharT>
+bool basic_mmap<CharT>::is_open() const noexcept
 {
     return file_handle_ != INVALID_HANDLE_VALUE;
 }
 
-inline bool mmap::is_mapped() const noexcept
+template<typename CharT>
+bool basic_mmap<CharT>::is_mapped() const noexcept
 {
 #ifdef _WIN32
     return file_mapping_handle_ != INVALID_HANDLE_VALUE;
@@ -381,7 +396,8 @@ inline bool mmap::is_mapped() const noexcept
 #endif
 }
 
-inline void mmap::swap(mmap& other)
+template<typename CharT>
+void basic_mmap<CharT>::swap(basic_mmap<CharT>& other)
 {
     if(this != &other)
     {
@@ -397,7 +413,8 @@ inline void mmap::swap(mmap& other)
     }
 }
 
-inline bool operator==(const mmap& a, const mmap& b)
+template<typename CharT>
+bool operator==(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b)
 {
     if(a.is_mapped() && b.is_mapped())
     {
@@ -406,7 +423,8 @@ inline bool operator==(const mmap& a, const mmap& b)
     return !a.is_mapped() && !b.is_mapped();
 }
 
-inline bool operator!=(const mmap& a, const mmap& b)
+template<typename CharT>
+bool operator!=(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b)
 {
     return !(a == b);
 }

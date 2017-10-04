@@ -37,11 +37,18 @@
 namespace mio {
 namespace detail {
 
+template<typename CharT> struct basic_mmap;
+
+template<typename CharT>
+bool operator==(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b);
+template<typename CharT>
+bool operator!=(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b);
+
 size_t page_size();
 
-struct mmap
+template<typename CharT> struct basic_mmap
 {
-    using value_type = char;
+    using value_type = CharT;
     using size_type = int64_t;
     using reference = value_type&;
     using const_reference = const value_type&;
@@ -93,12 +100,12 @@ private:
 
 public:
 
-    mmap() = default;
-    mmap(const mmap&) = delete;
-    mmap& operator=(const mmap&) = delete;
-    mmap(mmap&&);
-    mmap& operator=(mmap&&);
-    ~mmap();
+    basic_mmap() = default;
+    basic_mmap(const basic_mmap&) = delete;
+    basic_mmap& operator=(const basic_mmap&) = delete;
+    basic_mmap(basic_mmap&&);
+    basic_mmap& operator=(basic_mmap&&);
+    ~basic_mmap();
 
     handle_type file_handle() const noexcept { return file_handle_; }
     handle_type mapping_handle() const noexcept;
@@ -107,9 +114,10 @@ public:
     bool is_mapped() const noexcept;
     bool empty() const noexcept { return length() == 0; }
 
-    size_type size() const noexcept { return length_; }
-    size_type length() const noexcept { return length_; }
-    size_type mapped_length() const noexcept { return mapped_length_; }
+    // TODO return the number of BYTES or the number of times sizeof(CharT) fits into length_?
+    size_type size() const noexcept { return length_ >> sizeof(CharT); }
+    size_type length() const noexcept { return length_ >> sizeof(CharT); }
+    size_type mapped_length() const noexcept { return mapped_length_ >> sizeof(CharT); }
 
     pointer data() noexcept { return data_; }
     const_pointer data() const noexcept { return data_; }
@@ -134,19 +142,19 @@ public:
     const_reference operator[](const size_type i) const noexcept { return data_[i]; }
 
     template<typename String>
-    void map(const String& path, const size_type offset, const size_type length,
-        const access_mode mode, std::error_code& error);
-    void map(const handle_type handle, const size_type offset, const size_type length,
-        const access_mode mode, std::error_code& error);
+    void map(String& path, size_type offset, size_type length,
+        access_mode mode, std::error_code& error);
+    void map(handle_type handle, size_type offset, size_type length,
+        access_mode mode, std::error_code& error);
     void unmap();
     void close();
 
     void sync(std::error_code& error);
 
-    void swap(mmap& other);
+    void swap(basic_mmap& other);
 
-    friend bool operator==(const mmap& a, const mmap& b);
-    friend bool operator!=(const mmap& a, const mmap& b);
+    friend bool operator==<CharT>(const basic_mmap& a, const basic_mmap& b);
+    friend bool operator!=<CharT>(const basic_mmap& a, const basic_mmap& b);
 
 private:
 

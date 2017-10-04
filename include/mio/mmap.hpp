@@ -28,26 +28,26 @@
 namespace mio {
 
 /** A read-only file memory mapping. */
-class mmap_source
+template<typename CharT> class basic_mmap_source
 {
-    using impl_type = detail::mmap;
+    using impl_type = detail::basic_mmap<CharT>;
     impl_type impl_;
 
 public:
 
-    using value_type = impl_type::value_type;
-    using size_type = impl_type::size_type;
-    using reference = impl_type::reference;
-    using const_reference = impl_type::const_reference;
-    using pointer = impl_type::pointer;
-    using const_pointer = impl_type::const_pointer;
-    using difference_type = impl_type::difference_type;
-    using iterator = impl_type::iterator;
-    using const_iterator = impl_type::const_iterator;
+    using value_type = typename impl_type::value_type;
+    using size_type = typename impl_type::size_type;
+    using reference = typename impl_type::reference;
+    using const_reference = typename impl_type::const_reference;
+    using pointer = typename impl_type::pointer;
+    using const_pointer = typename impl_type::const_pointer;
+    using difference_type = typename impl_type::difference_type;
+    using iterator = typename impl_type::iterator;
+    using const_iterator = typename impl_type::const_iterator;
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-    using iterator_category = impl_type::iterator_category;
-    using handle_type = impl_type::handle_type;
+    using iterator_category = typename impl_type::iterator_category;
+    using handle_type = typename impl_type::handle_type;
 
     /**
      * This value may be provided as the `length` parameter to the constructor or
@@ -60,7 +60,7 @@ public:
      * operations that attempt to access nonexistent underlying date will result in
      * undefined behaviour/segmentation faults.
      */
-    mmap_source() = default;
+    basic_mmap_source() = default;
 
     /**
      * `handle` must be a valid file handle, which is then used to memory map the
@@ -73,7 +73,7 @@ public:
      * returned by `data` or `begin`), so long as `offset` is valid, will be at `offset`
      * from the start of the file.
      */
-    mmap_source(const handle_type handle, const size_type offset, const size_type length)
+    basic_mmap_source(const handle_type handle, const size_type offset, const size_type length)
     {
         std::error_code error;
         map(handle, offset, length, error);
@@ -84,11 +84,11 @@ public:
      * This class has single-ownership semantics, so transferring ownership may only be
      * accomplished by moving the object.
      */
-    mmap_source(mmap_source&&) = default;
-    mmap_source& operator=(mmap_source&&) = default;
+    basic_mmap_source(basic_mmap_source&&) = default;
+    basic_mmap_source& operator=(basic_mmap_source&&) = default;
 
     /** The destructor invokes unmap. */
-    ~mmap_source() = default;
+    ~basic_mmap_source() = default;
 
     /**
      * On UNIX systems 'file_handle' and 'mapping_handle' are the same. On Windows,
@@ -206,40 +206,40 @@ public:
      */
     void unmap() { impl_.unmap(); }
 
-    void swap(mmap_source& other) { impl_.swap(other.impl_); }
+    void swap(basic_mmap_source& other) { impl_.swap(other.impl_); }
 
-    friend bool operator==(const mmap_source& a, const mmap_source& b)
+    friend bool operator==(const basic_mmap_source& a, const basic_mmap_source& b)
     {
         return a.impl_ == b.impl_;
     }
 
-    friend bool operator!=(const mmap_source& a, const mmap_source& b)
+    friend bool operator!=(const basic_mmap_source& a, const basic_mmap_source& b)
     {
         return !(a == b);
     }
 };
 
 /** A read-write file memory mapping. */
-class mmap_sink
+template<typename CharT> class basic_mmap_sink
 {
-    using impl_type = detail::mmap;
+    using impl_type = detail::basic_mmap<CharT>;
     impl_type impl_;
 
 public:
 
-    using value_type = impl_type::value_type;
-    using size_type = impl_type::size_type;
-    using reference = impl_type::reference;
-    using const_reference = impl_type::const_reference;
-    using pointer = impl_type::pointer;
-    using const_pointer = impl_type::const_pointer;
-    using difference_type = impl_type::difference_type;
-    using iterator = impl_type::iterator;
-    using const_iterator = impl_type::const_iterator;
+    using value_type = typename impl_type::value_type;
+    using size_type = typename impl_type::size_type;
+    using reference = typename impl_type::reference;
+    using const_reference = typename impl_type::const_reference;
+    using pointer = typename impl_type::pointer;
+    using const_pointer = typename impl_type::const_pointer;
+    using difference_type = typename impl_type::difference_type;
+    using iterator = typename impl_type::iterator;
+    using const_iterator = typename impl_type::const_iterator;
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-    using iterator_category = impl_type::iterator_category;
-    using handle_type = impl_type::handle_type;
+    using iterator_category = typename impl_type::iterator_category;
+    using handle_type = typename impl_type::handle_type;
     
     /**
      * This value may be provided as the `length` parameter to the constructor or
@@ -252,7 +252,7 @@ public:
      * operations that attempt to access nonexistent underlying date will result in
      * undefined behaviour/segmentation faults.
      */
-    mmap_sink() = default;
+    basic_mmap_sink() = default;
 
     /**
      * `handle` must be a valid file handle, which is then used to memory map the
@@ -265,7 +265,7 @@ public:
      * returned by `data` or `begin`), so long as `offset` is valid, will be at `offset`
      * from the start of the file.
      */
-    mmap_sink(const handle_type handle, const size_type offset, const size_type length)
+    basic_mmap_sink(const handle_type handle, const size_type offset, const size_type length)
     {
         std::error_code error;
         map(handle, offset, length, error);
@@ -276,15 +276,15 @@ public:
      * This class has single-ownership semantics, so transferring ownership may only be
      * accomplished by moving the object.
      */
-    mmap_sink(mmap_sink&&) = default;
-    mmap_sink& operator=(mmap_sink&&) = default;
+    basic_mmap_sink(basic_mmap_sink&&) = default;
+    basic_mmap_sink& operator=(basic_mmap_sink&&) = default;
 
     /**
      * The destructor invokes unmap, but does NOT invoke `sync`. Thus, if the mapped
      * region has been written to, `sync` needs to be called in order to persist the
      * changes to disk.
      */
-    ~mmap_sink() = default;
+    ~basic_mmap_sink() = default;
 
     /**
      * On UNIX systems 'file_handle' and 'mapping_handle' are the same. On Windows,
@@ -411,18 +411,24 @@ public:
     /** Flushes the memory mapped page to disk. */
     void sync(std::error_code& error) { impl_.sync(error); }
 
-    void swap(mmap_sink& other) { impl_.swap(other.impl_); }
+    void swap(basic_mmap_sink& other) { impl_.swap(other.impl_); }
 
-    friend bool operator==(const mmap_sink& a, const mmap_sink& b)
+    friend bool operator==(const basic_mmap_sink& a, const basic_mmap_sink& b)
     {
         return a.impl_ == b.impl_;
     }
 
-    friend bool operator!=(const mmap_sink& a, const mmap_sink& b)
+    friend bool operator!=(const basic_mmap_sink& a, const basic_mmap_sink& b)
     {
         return !(a == b);
     }
 };
+
+using mmap_source = basic_mmap_source<char>;
+using ummap_source = basic_mmap_source<unsigned char>;
+
+using mmap_sink = basic_mmap_sink<char>;
+using ummap_sink = basic_mmap_sink<unsigned char>;
 
 /**
  * Convenience factory method.
