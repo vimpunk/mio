@@ -266,7 +266,7 @@ public:
         typename = typename std::enable_if<A == access_mode::read_write>::type
     > void sync(std::error_code& error) { impl_.sync(error); }
 
-    /** All operators compare two mapped area's according to CharTraits::compare. */
+    /** All operators compare two mapped areas according to CharTraits::compare. */
 
     friend bool operator==(const basic_mmap& a, const basic_mmap& b)
     {
