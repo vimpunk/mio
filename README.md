@@ -12,7 +12,7 @@ A simple header-only cross-platform C++14 memory mapping library.
 using offset_type = mio::mmap_source::size_type;
 using length_type = mio::mmap_source::size_type;
 
-int handle_error(const std::error_code& ec)
+int handle_error(const std::error_code& error)
 {
     const auto& errmsg = error.message();
     std::printf("error mapping file: %s, exiting...\n", errmsg.c_str());
@@ -25,7 +25,7 @@ int main()
     // length of the mapping would otherwise be expected, with the factory method.
     std::error_code error;
     mio::mmap_source mmap1 = mio::make_mmap_source("log.txt",
-        offset_type(0), mio::mmap_source::use_full_file_size, error);
+        offset_type(0), mio::use_full_file_size, error);
     if(error) { return handle_error(error); }
 
     // Read-write memory map the beginning of some file using the `map` member function.
@@ -42,10 +42,12 @@ int main()
     // Or just change one value with the subscript operator.
     mmap2[mmap2.size() / 2] = 42;
 
-    // Or map using the constructor, which throws a std::error_code upon failure.
+    // You can also create a mapping using the constructor, which throws a
+    // std::error_code upon failure.
     try {
         const auto page_size = mio::page_size();
-        mio::mmap_sink mmap3("another/path/to/file", offset_type(4096), length_type(4096));
+        mio::mmap_sink mmap3("another/path/to/file",
+            offset_type(page_size), length_type(page_size));
         // ...
     } catch(const std::error_code& error) {
         return handle_error(error);

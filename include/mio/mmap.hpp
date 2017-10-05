@@ -24,6 +24,7 @@
 #include "detail/basic_mmap.hpp"
 
 #include <system_error>
+#include <string> // std::char_traits
 
 namespace mio {
 
@@ -41,12 +42,12 @@ template<
     typename CharTraits = std::char_traits<CharT>
 > class basic_mmap
 {
-    using impl_type = detail::basic_mmap<CharT, CharTraits>;
-    impl_type impl_;
-
     static_assert(AccessMode == access_mode::read_only
         || AccessMode == access_mode::read_write,
         "AccessMode must be either read_only or read_write");
+
+    using impl_type = detail::basic_mmap<CharT, CharTraits>;
+    impl_type impl_;
 public:
 
     using value_type = typename impl_type::value_type;
@@ -58,8 +59,8 @@ public:
     using difference_type = typename impl_type::difference_type;
     using iterator = typename impl_type::iterator;
     using const_iterator = typename impl_type::const_iterator;
-    using reverse_iterator = std::reverse_iterator<iterator>;
-    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    using reverse_iterator = typename impl_type::reverse_iterator;
+    using const_reverse_iterator = typename impl_type::const_reverse_iterator;
     using iterator_category = typename impl_type::iterator_category;
     using handle_type = typename impl_type::handle_type;
 
@@ -69,6 +70,25 @@ public:
      * undefined behaviour/segmentation faults.
      */
     basic_mmap() = default;
+
+    /**
+     * `handle` must be a valid file handle, which is then used to memory map the
+     * requested region. Upon failure a `std::error_code` is thrown, detailing the
+     * cause of the error, and the object remains in an unmapped state.
+     *
+     * When specifying `offset`, there is no need to worry about providing
+     * a value that is aligned with the operating system's page allocation granularity.
+     * This is adjusted by the implementation such that the first requested byte (as
+     * returned by `data` or `begin`), so long as `offset` is valid, will be at `offset`
+     * from the start of the file.
+     */
+    template<typename String>
+    basic_mmap(const String& path, const size_type offset, const size_type length)
+    {
+        std::error_code error;
+        map(path, offset, length, error);
+        if(error) { throw error; }
+    }
 
     /**
      * `handle` must be a valid file handle, which is then used to memory map the
