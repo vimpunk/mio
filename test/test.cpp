@@ -6,6 +6,13 @@
 #include <cassert>
 #include <system_error>
 
+int handle_error(const std::error_code& error)
+{
+    const auto& errmsg = error.message();
+    std::printf("error mapping file: %s, exiting...\n", errmsg.c_str());
+    return error.value();
+}
+
 int main()
 {
     const char* path = "test-file";
@@ -19,13 +26,8 @@ int main()
     // Map the region of the file to which buffer was written.
     std::error_code error;
     mio::mmap_source file_view = mio::make_mmap_source(
-        path, 0, mio::use_full_file_size, error);
-    if(error)
-    {
-        const auto& errmsg = error.message();
-        std::printf("error mapping file: %s, exiting...\n", errmsg.c_str());
-        return error.value();
-    }
+        path, 0, mio::map_entire_file, error);
+    if(error) { return handle_error(error); }
 
     assert(file_view.is_open());
     assert(file_view.size() == buffer.size());
@@ -70,6 +72,15 @@ int main()
 
     // Just making sure custom types compile.
     mio::ummap_source ummap;
+
+    const auto page_size = mio::page_size();
+
+    // Now check if an mmap with a wider char type reports the correct size.
+    using u16mmap_source = mio::basic_mmap_source<char16_t>;
+    u16mmap_source wide_mmap = mio::make_mmap<u16mmap_source>(path, 0, page_size, error);
+    if(error) { return handle_error(error); }
+
+    assert(wide_mmap.size() == page_size / 2);
 
     std::printf("all tests passed!\n");
 }

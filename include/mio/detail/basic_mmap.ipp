@@ -41,7 +41,7 @@ namespace detail {
 // Generic handle type for use by free functions.
 using handle_type = basic_mmap<char>::handle_type;
 
-#if defined(_WIN32)
+#ifdef _WIN32
 inline DWORD int64_high(int64_t n) noexcept
 {
     return n >> 32;
@@ -73,7 +73,7 @@ handle_type open_file(const Path& path, const access_mode mode, std::error_code&
         error = std::make_error_code(std::errc::invalid_argument);
         return INVALID_HANDLE_VALUE;
     }
-#if defined(_WIN32)
+#ifdef _WIN32
     const auto handle = ::CreateFile(c_str(path),
         mode == access_mode::read_only ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -116,14 +116,14 @@ inline int64_t query_file_size(handle_type handle, std::error_code& error)
 
 // -- basic_mmap --
 
-template<typename CharT, typename CharTraits>
-basic_mmap<CharT, CharTraits>::~basic_mmap()
+template<typename CharT>
+basic_mmap<CharT>::~basic_mmap()
 {
     unmap();
 }
 
-template<typename CharT, typename CharTraits>
-basic_mmap<CharT, CharTraits>::basic_mmap(basic_mmap<CharT, CharTraits>&& other)
+template<typename CharT>
+basic_mmap<CharT>::basic_mmap(basic_mmap<CharT>&& other)
     : data_(std::move(other.data_))
     , length_(std::move(other.length_))
     , mapped_length_(std::move(other.mapped_length_))
@@ -141,8 +141,8 @@ basic_mmap<CharT, CharTraits>::basic_mmap(basic_mmap<CharT, CharTraits>&& other)
 #endif
 }
 
-template<typename CharT, typename CharTraits>
-basic_mmap<CharT, CharTraits>& basic_mmap<CharT, CharTraits>::operator=(basic_mmap<CharT, CharTraits>&& other)
+template<typename CharT>
+basic_mmap<CharT>& basic_mmap<CharT>::operator=(basic_mmap<CharT>&& other)
 {
     if(this != &other)
     {
@@ -170,9 +170,9 @@ basic_mmap<CharT, CharTraits>& basic_mmap<CharT, CharTraits>::operator=(basic_mm
     return *this;
 }
 
-template<typename CharT, typename CharTraits>
-typename basic_mmap<CharT, CharTraits>::handle_type
-basic_mmap<CharT, CharTraits>::mapping_handle() const noexcept
+template<typename CharT>
+typename basic_mmap<CharT>::handle_type
+basic_mmap<CharT>::mapping_handle() const noexcept
 {
 #ifdef _WIN32
     return file_mapping_handle_;
@@ -181,9 +181,9 @@ basic_mmap<CharT, CharTraits>::mapping_handle() const noexcept
 #endif
 }
 
-template<typename CharT, typename CharTraits>
+template<typename CharT>
 template<typename String>
-void basic_mmap<CharT, CharTraits>::map(String& path, size_type offset,
+void basic_mmap<CharT>::map(String& path, size_type offset,
     size_type length, access_mode mode, std::error_code& error)
 {
     error.clear();
@@ -202,8 +202,8 @@ void basic_mmap<CharT, CharTraits>::map(String& path, size_type offset,
     }
 }
 
-template<typename CharT, typename CharTraits>
-void basic_mmap<CharT, CharTraits>::map(handle_type handle, size_type offset,
+template<typename CharT>
+void basic_mmap<CharT>::map(handle_type handle, size_type offset,
     size_type length, access_mode mode, std::error_code& error)
 {
     error.clear();
@@ -216,7 +216,7 @@ void basic_mmap<CharT, CharTraits>::map(handle_type handle, size_type offset,
     const auto file_size = query_file_size(handle, error);
     if(error) { return; }
 
-    if(length <= use_full_file_size)
+    if(length <= map_entire_file)
     {
         length = file_size;
     }
@@ -231,13 +231,13 @@ void basic_mmap<CharT, CharTraits>::map(handle_type handle, size_type offset,
     map(offset, length, mode, error);
 }
 
-template<typename CharT, typename CharTraits>
-void basic_mmap<CharT, CharTraits>::map(const size_type offset, const size_type length,
+template<typename CharT>
+void basic_mmap<CharT>::map(const size_type offset, const size_type length,
     const access_mode mode, std::error_code& error)
 {
     const size_type aligned_offset = make_offset_page_aligned(offset);
     const size_type length_to_map = offset - aligned_offset + length;
-#if defined(_WIN32)
+#ifdef _WIN32
     const size_type max_file_size = offset + length;
     file_mapping_handle_ = ::CreateFileMapping(
         file_handle_,
@@ -282,8 +282,8 @@ void basic_mmap<CharT, CharTraits>::map(const size_type offset, const size_type 
     mapped_length_ = length_to_map;
 }
 
-template<typename CharT, typename CharTraits>
-void basic_mmap<CharT, CharTraits>::sync(std::error_code& error)
+template<typename CharT>
+void basic_mmap<CharT>::sync(std::error_code& error)
 {
     error.clear();
     if(!is_open())
@@ -313,8 +313,8 @@ void basic_mmap<CharT, CharTraits>::sync(std::error_code& error)
 #endif
 }
 
-template<typename CharT, typename CharTraits>
-void basic_mmap<CharT, CharTraits>::unmap()
+template<typename CharT>
+void basic_mmap<CharT>::unmap()
 {
     if(!is_open()) { return; }
     // TODO do we care about errors here?
@@ -350,23 +350,23 @@ void basic_mmap<CharT, CharTraits>::unmap()
 #endif
 }
 
-template<typename CharT, typename CharTraits>
-typename basic_mmap<CharT, CharTraits>::pointer
-basic_mmap<CharT, CharTraits>::get_mapping_start() noexcept
+template<typename CharT>
+typename basic_mmap<CharT>::pointer
+basic_mmap<CharT>::get_mapping_start() noexcept
 {
     if(!data_) { return nullptr; }
     const auto offset = mapped_length_ - length_;
     return data_ - offset;
 }
 
-template<typename CharT, typename CharTraits>
-bool basic_mmap<CharT, CharTraits>::is_open() const noexcept
+template<typename CharT>
+bool basic_mmap<CharT>::is_open() const noexcept
 {
     return file_handle_ != INVALID_HANDLE_VALUE;
 }
 
-template<typename CharT, typename CharTraits>
-bool basic_mmap<CharT, CharTraits>::is_mapped() const noexcept
+template<typename CharT>
+bool basic_mmap<CharT>::is_mapped() const noexcept
 {
 #ifdef _WIN32
     return file_mapping_handle_ != INVALID_HANDLE_VALUE;
@@ -375,8 +375,8 @@ bool basic_mmap<CharT, CharTraits>::is_mapped() const noexcept
 #endif
 }
 
-template<typename CharT, typename CharTraits>
-void basic_mmap<CharT, CharTraits>::swap(basic_mmap<CharT, CharTraits>& other)
+template<typename CharT>
+void basic_mmap<CharT>::swap(basic_mmap<CharT>& other)
 {
     if(this != &other)
     {
@@ -392,49 +392,43 @@ void basic_mmap<CharT, CharTraits>::swap(basic_mmap<CharT, CharTraits>& other)
     }
 }
 
-template<typename CharT, typename CharTraits>
-bool operator==(const basic_mmap<CharT, CharTraits>& a,
-    const basic_mmap<CharT, CharTraits>& b)
+template<typename CharT>
+bool operator==(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b)
 {
-    return a.size() == b.size()
-        && CharTraits::compare(a.data(), b.data(), a.size()) == 0;
+    return a.data() == b.data()
+        && a.size() == b.size();
 }
 
-template<typename CharT, typename CharTraits>
-bool operator!=(const basic_mmap<CharT, CharTraits>& a,
-    const basic_mmap<CharT, CharTraits>& b)
+template<typename CharT>
+bool operator!=(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b)
 {
     return !(a == b);
 }
 
-template<typename CharT, typename CharTraits>
-bool operator<(const basic_mmap<CharT, CharTraits>& a,
-    const basic_mmap<CharT, CharTraits>& b)
+template<typename CharT>
+bool operator<(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b)
 {
-    return CharTraits::compare(a.data(), b.data(), a.size()) < 0;
+    if(a.data() == b.data()) { return a.size() < b.size(); }
+    return a.data() < b.data();
 }
 
-// TODO optimize
-template<typename CharT, typename CharTraits>
-bool operator<=(const basic_mmap<CharT, CharTraits>& a,
-    const basic_mmap<CharT, CharTraits>& b)
+template<typename CharT>
+bool operator<=(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b)
 {
-    return (a == b) || (a < b);
+    return !(a > b);
 }
 
-template<typename CharT, typename CharTraits>
-bool operator>(const basic_mmap<CharT, CharTraits>& a,
-    const basic_mmap<CharT, CharTraits>& b)
+template<typename CharT>
+bool operator>(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b)
 {
-    return CharTraits::compare(a.data(), b.data(), a.size()) > 0;
+    if(a.data() == b.data()) { return a.size() > b.size(); }
+    return a.data() > b.data();
 }
 
-// TODO optimize
-template<typename CharT, typename CharTraits>
-bool operator>=(const basic_mmap<CharT, CharTraits>& a,
-    const basic_mmap<CharT, CharTraits>& b)
+template<typename CharT>
+bool operator>=(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b)
 {
-    return (a == b) || (a > b);
+    return !(a < b);
 }
 
 } // namespace detail

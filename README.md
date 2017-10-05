@@ -21,11 +21,11 @@ int handle_error(const std::error_code& error)
 
 int main()
 {
-    // Read-only memory map the whole file by using `use_full_file_size` where the
+    // Read-only memory map the whole file by using `map_entire_file` where the
     // length of the mapping would otherwise be expected, with the factory method.
     std::error_code error;
     mio::mmap_source mmap1 = mio::make_mmap_source("log.txt",
-        offset_type(0), mio::use_full_file_size, error);
+        offset_type(0), length_type(mio::map_entire_file), error);
     if(error) { return handle_error(error); }
 
     // Read-write memory map the beginning of some file using the `map` member function.
@@ -53,9 +53,11 @@ int main()
         return handle_error(error);
     }
 
-    // mio exposes an interface that abstracts away memory as a string, so it is
-    // possible to create mmap objects that have custom underlying character types:
+    // It's possible to change the character type of the mmap object, which is useful
+    // for wide strings or reading fixed width integers (although endianness is not
+    // accounted for by mio, so appropriate conversions need be done by the user).
     using wmmap_source = mio::basic_mmap_source<wchar_t>;
+    using i32mmap_source = mio::basic_mmap_source<int32_t>;
 }
 ```
 

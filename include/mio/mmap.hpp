@@ -34,20 +34,20 @@ using detail::access_mode;
 
 // This value may be provided as the `length` parameter to the constructor or
 // `map`, in which case a memory mapping of the entire file is created.
-using detail::use_full_file_size;
+using detail::map_entire_file;
 
 template<
     access_mode AccessMode,
-    typename CharT,
-    typename CharTraits = std::char_traits<CharT>
+    typename CharT
 > class basic_mmap
 {
     static_assert(AccessMode == access_mode::read_only
         || AccessMode == access_mode::read_write,
         "AccessMode must be either read_only or read_write");
 
-    using impl_type = detail::basic_mmap<CharT, CharTraits>;
+    using impl_type = detail::basic_mmap<CharT>;
     impl_type impl_;
+
 public:
 
     using value_type = typename impl_type::value_type;
@@ -211,8 +211,10 @@ public:
      * from the start of the file.
      *
      * `length` must be the number of bytes to map, regardless of the underlying
-     * value_type's size! If it is `use_full_file_size`, a mapping of the entire file
-     * is created.
+     * value_type's size. That is, if CharT is a wide char, the value returned by
+     * the `size` and `length` methods is not the same as this `length` value (TODO
+     * this can be confusing).
+     * If it is `map_entire_file`, a mapping of the entire file is created.
      */
     template<typename String>
     void map(const String& path, const size_type offset,
@@ -237,8 +239,10 @@ public:
      * from the start of the file.
      *
      * `length` must be the number of bytes to map, regardless of the underlying
-     * value_type's size! If it is `use_full_file_size`, a mapping of the entire file
-     * is created.
+     * value_type's size. That is, if CharT is a wide char, the value returned by
+     * the `size` and `length` methods is not the same as this `length` value (TODO
+     * this can be confusing).
+     * If it is `map_entire_file`, a mapping of the entire file is created.
      */
     void map(const handle_type handle, const size_type offset,
         const size_type length, std::error_code& error)
@@ -259,14 +263,16 @@ public:
 
     void swap(basic_mmap& other) { impl_.swap(other.impl_); }
 
-    /** Flushes the memory mapped page to disk. */
-    // TODO better name?
+    /** Flushes the memory mapped page to disk. Errors are reported via `error`. */
     template<
         access_mode A = AccessMode,
         typename = typename std::enable_if<A == access_mode::read_write>::type
     > void sync(std::error_code& error) { impl_.sync(error); }
 
-    /** All operators compare two mapped areas according to CharTraits::compare. */
+    /**
+     * All operators compare the address of the first byte and size of the two mapped
+     * regions.
+     */
 
     friend bool operator==(const basic_mmap& a, const basic_mmap& b)
     {
@@ -303,21 +309,20 @@ public:
  * This is the basis for all read-only mmap objects and should be preferred over
  * directly using basic_mmap.
  */
-template<
-    typename CharT,
-    typename CharTraits = std::char_traits<CharT>
-> using basic_mmap_source = basic_mmap<access_mode::read_only, CharT, CharTraits>;
+template<typename CharT>
+using basic_mmap_source = basic_mmap<access_mode::read_only, CharT>;
 
 /**
  * This is the basis for all read-write mmap objects and should be preferred over
  * directly using basic_mmap.
  */
-template<
-    typename CharT,
-    typename CharTraits = std::char_traits<CharT>
-> using basic_mmap_sink = basic_mmap<access_mode::read_write, CharT, CharTraits>;
+template<typename CharT>
+using basic_mmap_sink = basic_mmap<access_mode::read_write, CharT>;
 
-/** These aliases should cover the most common use cases. */
+/**
+ * These aliases cover the most common use cases, both representing a raw byte stream
+ * (either with a char or an unsigned char/uint8_t).
+ */
 using mmap_source = basic_mmap_source<char>;
 using ummap_source = basic_mmap_source<unsigned char>;
 
