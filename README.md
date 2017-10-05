@@ -4,6 +4,7 @@ A simple header-only cross-platform C++14 memory mapping library.
 ## Example
 ```c++
 #include <mio/mmap.hpp>
+#include <mio/page.hpp> // for mio::page_size
 #include <system_error> // for std::error_code
 #include <cstdio> // for std::printf
 
@@ -43,11 +44,16 @@ int main()
 
     // Or map using the constructor, which throws a std::error_code upon failure.
     try {
+        const auto page_size = mio::page_size();
         mio::mmap_sink mmap3("another/path/to/file", offset_type(4096), length_type(4096));
         // ...
     } catch(const std::error_code& error) {
         return handle_error(error);
     }
+
+    // mio exposes an interface that abstracts away memory as a string, so it is
+    // possible to create mmap objects that have custom underlying character types:
+    using wmmap_source = mio::basic_mmap_source<wchar_t>;
 }
 ```
 

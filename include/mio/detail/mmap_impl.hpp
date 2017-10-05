@@ -37,16 +37,18 @@
 namespace mio {
 namespace detail {
 
-template<typename CharT> struct basic_mmap;
+enum { use_full_file_size = 0 };
 
-template<typename CharT>
-bool operator==(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b);
-template<typename CharT>
-bool operator!=(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b);
+enum class access_mode
+{
+    read_only,
+    read_write
+};
 
-size_t page_size();
-
-template<typename CharT> struct basic_mmap
+template<
+    typename CharT,
+    typename CharTraits = std::char_traits<CharT>
+> struct basic_mmap
 {
     using value_type = CharT;
     using size_type = int64_t;
@@ -65,14 +67,6 @@ template<typename CharT> struct basic_mmap
 #else
     using handle_type = int;
 #endif
-
-    static constexpr size_type use_full_file_size = 0;
-
-    enum class access_mode
-    {
-        read_only,
-        read_write
-    };
 
 private:
 
@@ -114,8 +108,6 @@ public:
     bool is_mapped() const noexcept;
     bool empty() const noexcept { return length() == 0; }
 
-    // TODO return the number of BYTES or the number of times sizeof(CharT) fits into length_?
-    size_type size() const noexcept { return length_ >> sizeof(CharT); }
     size_type length() const noexcept { return length_ >> sizeof(CharT); }
     size_type mapped_length() const noexcept { return mapped_length_ >> sizeof(CharT); }
 
@@ -153,9 +145,6 @@ public:
 
     void swap(basic_mmap& other);
 
-    friend bool operator==<CharT>(const basic_mmap& a, const basic_mmap& b);
-    friend bool operator!=<CharT>(const basic_mmap& a, const basic_mmap& b);
-
 private:
 
     pointer get_mapping_start() noexcept;
@@ -163,6 +152,30 @@ private:
     void map(const size_type offset, size_type length,
         const access_mode mode, std::error_code& error);
 };
+
+template<typename CharT, typename CharTraits>
+bool operator==(const basic_mmap<CharT, CharTraits>& a,
+    const basic_mmap<CharT, CharTraits>& b);
+
+template<typename CharT, typename CharTraits>
+bool operator!=(const basic_mmap<CharT, CharTraits>& a,
+    const basic_mmap<CharT, CharTraits>& b);
+
+template<typename CharT, typename CharTraits>
+bool operator<(const basic_mmap<CharT, CharTraits>& a,
+    const basic_mmap<CharT, CharTraits>& b);
+
+template<typename CharT, typename CharTraits>
+bool operator<=(const basic_mmap<CharT, CharTraits>& a,
+    const basic_mmap<CharT, CharTraits>& b);
+
+template<typename CharT, typename CharTraits>
+bool operator>(const basic_mmap<CharT, CharTraits>& a,
+    const basic_mmap<CharT, CharTraits>& b);
+
+template<typename CharT, typename CharTraits>
+bool operator>=(const basic_mmap<CharT, CharTraits>& a,
+    const basic_mmap<CharT, CharTraits>& b);
 
 } // namespace detail
 } // namespace mio

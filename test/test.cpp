@@ -18,8 +18,8 @@ int main()
 
     // Map the region of the file to which buffer was written.
     std::error_code error;
-    mio::mmap_source file_view = mio::make_mmap_source(path,
-        0, mio::mmap_source::use_full_file_size, error);
+    mio::mmap_source file_view = mio::make_mmap_source(
+        path, 0, mio::use_full_file_size, error);
     if(error)
     {
         const auto& errmsg = error.message();
