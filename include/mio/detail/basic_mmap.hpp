@@ -180,6 +180,6 @@ bool operator>=(const basic_mmap<CharT, CharTraits>& a,
 } // namespace detail
 } // namespace mio
 
-#include "mmap_impl.ipp"
+#include "basic_mmap.ipp"
 
 #endif // MIO_BASIC_MMAP_HEADER

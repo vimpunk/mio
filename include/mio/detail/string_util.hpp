@@ -18,8 +18,8 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef MIO_TYPE_TRAITS_HEADER
-#define MIO_TYPE_TRAITS_HEADER
+#ifndef MIO_STRING_UTIL_HEADER
+#define MIO_STRING_UTIL_HEADER
 
 #include <type_traits>
 
@@ -70,4 +70,4 @@ template<
 } // namespace detail
 } // namespace mio
 
-#endif // MIO_TYPE_TRAITS_HEADER
+#endif // MIO_STRING_UTIL_HEADER

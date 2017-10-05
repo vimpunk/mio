@@ -21,8 +21,8 @@
 #ifndef MIO_BASIC_MMAP_IMPL
 #define MIO_BASIC_MMAP_IMPL
 
-#include "mmap_impl.hpp"
-#include "type_traits.hpp"
+#include "basic_mmap.hpp"
+#include "string_util.hpp"
 #include "../page.hpp"
 
 #include <algorithm>

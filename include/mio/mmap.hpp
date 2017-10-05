@@ -21,7 +21,7 @@
 #ifndef MIO_MMAP_HEADER
 #define MIO_MMAP_HEADER
 
-#include "detail/mmap_impl.hpp"
+#include "detail/basic_mmap.hpp"
 
 #include <system_error>
 
