@@ -68,5 +68,8 @@ int main()
     m = mio::make_mmap_source(path, 100 * buffer.size(), buffer.size(), error);
     CHECK_INVALID_MMAP(m);
 
+    // Just making sure custom types compile.
+    mio::ummap_source ummap;
+
     std::printf("all tests passed!\n");
 }

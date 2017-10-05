@@ -29,7 +29,6 @@ namespace mio {
 
 // This is used by basic_mmap to determine whether to create a read-only or a read-write
 // memory mapping. The two possible values are `read_only` and `read_write`.
-// TODO try to better expose these values
 using detail::access_mode;
 
 // This value may be provided as the `length` parameter to the constructor or
@@ -298,12 +297,14 @@ template<
     typename CharTraits = std::char_traits<CharT>
 > using basic_mmap_sink = basic_mmap<access_mode::read_write, CharT, CharTraits>;
 
+/** These aliases should cover the most common use cases. */
 using mmap_source = basic_mmap_source<char>;
 using ummap_source = basic_mmap_source<unsigned char>;
 
 using mmap_sink = basic_mmap_sink<char>;
 using ummap_sink = basic_mmap_sink<unsigned char>;
 
+/** Convenience factory method that constructs a mapping for any basic_mmap<> type. */
 template<
     typename MMap,
     typename MappingToken
