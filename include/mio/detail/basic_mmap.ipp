@@ -92,7 +92,7 @@ handle_type open_file(const Path& path, const access_mode mode, std::error_code&
     return handle;
 }
 
-int64_t query_file_size(handle_type handle, std::error_code& error)
+inline int64_t query_file_size(handle_type handle, std::error_code& error)
 {
     error.clear();
 #ifdef _WIN32
@@ -407,7 +407,6 @@ bool operator!=(const basic_mmap<CharT, CharTraits>& a,
     return !(a == b);
 }
 
-/*
 template<typename CharT, typename CharTraits>
 bool operator<(const basic_mmap<CharT, CharTraits>& a,
     const basic_mmap<CharT, CharTraits>& b)
@@ -437,7 +436,6 @@ bool operator>=(const basic_mmap<CharT, CharTraits>& a,
 {
     return (a == b) || (a > b);
 }
-*/
 
 } // namespace detail
 } // namespace mio
