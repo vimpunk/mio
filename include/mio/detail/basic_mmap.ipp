@@ -75,7 +75,7 @@ handle_type open_file(const Path& path, const access_mode mode, std::error_code&
     }
 #ifdef _WIN32
     const auto handle = ::CreateFile(c_str(path),
-        mode == access_mode::read_only ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+        mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
         0,
         OPEN_EXISTING,
@@ -83,7 +83,7 @@ handle_type open_file(const Path& path, const access_mode mode, std::error_code&
         0);
 #else
     const auto handle = ::open(c_str(path),
-        mode == access_mode::read_only ? O_RDONLY : O_RDWR);
+        mode == access_mode::read ? O_RDONLY : O_RDWR);
 #endif
     if(handle == INVALID_HANDLE_VALUE)
     {
@@ -171,8 +171,7 @@ basic_mmap<CharT>& basic_mmap<CharT>::operator=(basic_mmap<CharT>&& other)
 }
 
 template<typename CharT>
-typename basic_mmap<CharT>::handle_type
-basic_mmap<CharT>::mapping_handle() const noexcept
+typename basic_mmap<CharT>::handle_type basic_mmap<CharT>::mapping_handle() const noexcept
 {
 #ifdef _WIN32
     return file_mapping_handle_;
@@ -242,7 +241,7 @@ void basic_mmap<CharT>::map(const size_type offset, const size_type length,
     file_mapping_handle_ = ::CreateFileMapping(
         file_handle_,
         0,
-        mode == access_mode::read_only ? PAGE_READONLY : PAGE_READWRITE,
+        mode == access_mode::read ? PAGE_READONLY : PAGE_READWRITE,
         int64_high(max_file_size),
         int64_low(max_file_size),
         0);
@@ -254,7 +253,7 @@ void basic_mmap<CharT>::map(const size_type offset, const size_type length,
 
     const pointer mapping_start = static_cast<pointer>(::MapViewOfFile(
         file_mapping_handle_,
-        mode == access_mode::read_only ? FILE_MAP_READ : FILE_MAP_WRITE,
+        mode == access_mode::read ? FILE_MAP_READ : FILE_MAP_WRITE,
         int64_high(aligned_offset),
         int64_low(aligned_offset),
         length_to_map));
@@ -267,8 +266,8 @@ void basic_mmap<CharT>::map(const size_type offset, const size_type length,
     const pointer mapping_start = static_cast<pointer>(::mmap(
         0, // Don't give hint as to where to map.
         length_to_map,
-        mode == access_mode::read_only ? PROT_READ : PROT_WRITE,
-        MAP_SHARED, // TODO do we want to share it?
+        mode == access_mode::read ? PROT_READ : PROT_WRITE,
+        MAP_SHARED,
         file_handle_,
         aligned_offset));
     if(mapping_start == MAP_FAILED)
@@ -354,9 +353,8 @@ template<typename CharT>
 typename basic_mmap<CharT>::pointer
 basic_mmap<CharT>::get_mapping_start() noexcept
 {
-    if(!data_) { return nullptr; }
-    const auto offset = mapped_length_ - length_;
-    return data_ - offset;
+    if(!data()) { return nullptr; }
+    return data() - offset();
 }
 
 template<typename CharT>
@@ -373,6 +371,22 @@ bool basic_mmap<CharT>::is_mapped() const noexcept
 #else
     return is_open();
 #endif
+}
+
+template<typename CharT>
+void basic_mmap<CharT>::set_length(const size_type length) noexcept
+{
+    if(length > this->length() - offset()) { throw std::invalid_argument(""); } 
+    length_ = length;
+}
+
+template<typename CharT>
+void basic_mmap<CharT>::set_offset(const size_type offset) noexcept
+{
+    if(offset >= mapped_length()) { throw std::invalid_argument(""); }
+    const auto diff = offset - this->offset();
+    data_ += diff;
+    length_ += -1 * diff;
 }
 
 template<typename CharT>

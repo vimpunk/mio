@@ -41,8 +41,8 @@ enum { map_entire_file = 0 };
 
 enum class access_mode
 {
-    read_only,
-    read_write
+    read,
+    write
 };
 
 template<typename CharT> struct basic_mmap
@@ -105,9 +105,9 @@ public:
     bool is_mapped() const noexcept;
     bool empty() const noexcept { return length() == 0; }
 
-    size_type length() const noexcept { return length_ >> (sizeof(CharT) - 1); }
-    size_type mapped_length() const noexcept
-    { return mapped_length_ >> (sizeof(CharT) - 1); }
+    size_type offset() const noexcept { return mapped_length_ - length_; }
+    size_type length() const noexcept { return length_; }
+    size_type mapped_length() const noexcept { return mapped_length_; }
 
     pointer data() noexcept { return data_; }
     const_pointer data() const noexcept { return data_; }
@@ -130,6 +130,9 @@ public:
 
     reference operator[](const size_type i) noexcept { return data_[i]; }
     const_reference operator[](const size_type i) const noexcept { return data_[i]; }
+
+    void set_length(const size_type length) noexcept;
+    void set_offset(const size_type offset) noexcept;
 
     template<typename String>
     void map(String& path, size_type offset, size_type length,
