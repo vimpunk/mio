@@ -49,7 +49,7 @@ inline DWORD int64_high(int64_t n) noexcept
 
 inline DWORD int64_low(int64_t n) noexcept
 {
-    return n & 0xff'ff'ff'ff;
+    return n & 0xffffffff;
 }
 #endif
 
@@ -125,8 +125,8 @@ basic_mmap<CharT>::~basic_mmap()
 template<typename CharT>
 basic_mmap<CharT>::basic_mmap(basic_mmap<CharT>&& other)
     : data_(std::move(other.data_))
-    , length_(std::move(other.length_))
-    , mapped_length_(std::move(other.mapped_length_))
+    , num_bytes_(std::move(other.num_bytes_))
+    , num_mapped_bytes_(std::move(other.num_mapped_bytes_))
     , file_handle_(std::move(other.file_handle_))
 #ifdef _WIN32
     , file_mapping_handle_(std::move(other.file_mapping_handle_))
@@ -134,7 +134,7 @@ basic_mmap<CharT>::basic_mmap(basic_mmap<CharT>&& other)
     , is_handle_internal_(std::move(other.is_handle_internal_))
 {
     other.data_ = nullptr;
-    other.length_ = other.mapped_length_ = 0;
+    other.num_bytes_ = other.num_mapped_bytes_ = 0;
     other.file_handle_ = INVALID_HANDLE_VALUE;
 #ifdef _WIN32
     other.file_mapping_handle_ = INVALID_HANDLE_VALUE;
@@ -149,8 +149,8 @@ basic_mmap<CharT>& basic_mmap<CharT>::operator=(basic_mmap<CharT>&& other)
         // First the existing mapping needs to be removed.
         unmap();
         data_ = std::move(other.data_);
-        length_ = std::move(other.length_);
-        mapped_length_ = std::move(other.mapped_length_);
+        num_bytes_ = std::move(other.num_bytes_);
+        num_mapped_bytes_ = std::move(other.num_mapped_bytes_);
         file_handle_ = std::move(other.file_handle_);
 #ifdef _WIN32
         file_mapping_handle_ = std::move(other.file_mapping_handle_);
@@ -160,7 +160,7 @@ basic_mmap<CharT>& basic_mmap<CharT>::operator=(basic_mmap<CharT>&& other)
         // The moved from basic_mmap's fields need to be reset, because otherwise other's
         // destructor will unmap the same mapping that was just moved into this.
         other.data_ = nullptr;
-        other.length_ = other.mapped_length_ = 0;
+        other.num_bytes_ = other.num_mapped_bytes_ = 0;
         other.file_handle_ = INVALID_HANDLE_VALUE;
 #ifdef _WIN32
         other.file_mapping_handle_ = INVALID_HANDLE_VALUE;
@@ -183,7 +183,7 @@ typename basic_mmap<CharT>::handle_type basic_mmap<CharT>::mapping_handle() cons
 template<typename CharT>
 template<typename String>
 void basic_mmap<CharT>::map(String& path, size_type offset,
-    size_type length, access_mode mode, std::error_code& error)
+    size_type num_bytes, access_mode mode, std::error_code& error)
 {
     error.clear();
     if(detail::empty(path))
@@ -195,7 +195,7 @@ void basic_mmap<CharT>::map(String& path, size_type offset,
     {
         const auto handle = open_file(path, mode, error);
         if(error) { return; }
-        map(handle, offset, length, mode, error);
+        map(handle, offset, num_bytes, mode, error);
         // MUST be after the call to map, as that sets this to true.
         is_handle_internal_ = true;
     }
@@ -203,7 +203,7 @@ void basic_mmap<CharT>::map(String& path, size_type offset,
 
 template<typename CharT>
 void basic_mmap<CharT>::map(handle_type handle, size_type offset,
-    size_type length, access_mode mode, std::error_code& error)
+    size_type num_bytes, access_mode mode, std::error_code& error)
 {
     error.clear();
     if(handle == INVALID_HANDLE_VALUE)
@@ -215,11 +215,11 @@ void basic_mmap<CharT>::map(handle_type handle, size_type offset,
     const auto file_size = query_file_size(handle, error);
     if(error) { return; }
 
-    if(length <= map_entire_file)
+    if(num_bytes <= map_entire_file)
     {
-        length = file_size;
+        num_bytes = file_size;
     }
-    else if(offset + length > file_size)
+    else if(offset + num_bytes > file_size)
     {
         error = std::make_error_code(std::errc::invalid_argument);
         return;
@@ -227,17 +227,17 @@ void basic_mmap<CharT>::map(handle_type handle, size_type offset,
 
     file_handle_ = handle;
     is_handle_internal_ = false;
-    map(offset, length, mode, error);
+    map(offset, num_bytes, mode, error);
 }
 
 template<typename CharT>
-void basic_mmap<CharT>::map(const size_type offset, const size_type length,
+void basic_mmap<CharT>::map(const size_type offset, const size_type num_bytes,
     const access_mode mode, std::error_code& error)
 {
     const size_type aligned_offset = make_offset_page_aligned(offset);
-    const size_type length_to_map = offset - aligned_offset + length;
+    const size_type num_bytes_to_map = offset - aligned_offset + num_bytes;
 #ifdef _WIN32
-    const size_type max_file_size = offset + length;
+    const size_type max_file_size = offset + num_bytes;
     file_mapping_handle_ = ::CreateFileMapping(
         file_handle_,
         0,
@@ -256,7 +256,7 @@ void basic_mmap<CharT>::map(const size_type offset, const size_type length,
         mode == access_mode::read ? FILE_MAP_READ : FILE_MAP_WRITE,
         int64_high(aligned_offset),
         int64_low(aligned_offset),
-        length_to_map));
+        num_bytes_to_map));
     if(mapping_start == nullptr)
     {
         error = last_error();
@@ -265,7 +265,7 @@ void basic_mmap<CharT>::map(const size_type offset, const size_type length,
 #else
     const pointer mapping_start = static_cast<pointer>(::mmap(
         0, // Don't give hint as to where to map.
-        length_to_map,
+        num_bytes_to_map,
         mode == access_mode::read ? PROT_READ : PROT_WRITE,
         MAP_SHARED,
         file_handle_,
@@ -277,8 +277,8 @@ void basic_mmap<CharT>::map(const size_type offset, const size_type length,
     }
 #endif
     data_ = mapping_start + offset - aligned_offset;
-    length_ = length;
-    mapped_length_ = length_to_map;
+    num_bytes_ = num_bytes;
+    num_mapped_bytes_ = num_bytes_to_map;
 }
 
 template<typename CharT>
@@ -294,10 +294,10 @@ void basic_mmap<CharT>::sync(std::error_code& error)
     if(data() != nullptr)
     {
 #ifdef _WIN32
-        if(::FlushViewOfFile(get_mapping_start(), mapped_length_) == 0
+        if(::FlushViewOfFile(get_mapping_start(), num_mapped_bytes_) == 0
            || ::FlushFileBuffers(file_handle_) == 0)
 #else
-        if(::msync(get_mapping_start(), mapped_length_, MS_SYNC) != 0)
+        if(::msync(get_mapping_start(), num_mapped_bytes_, MS_SYNC) != 0)
 #endif
         {
             error = last_error();
@@ -325,7 +325,7 @@ void basic_mmap<CharT>::unmap()
         file_mapping_handle_ = INVALID_HANDLE_VALUE;
     }
 #else
-    if(data_) { ::munmap(const_cast<pointer>(get_mapping_start()), mapped_length_); }
+    if(data_) { ::munmap(const_cast<pointer>(get_mapping_start()), num_mapped_bytes_); }
 #endif
 
     // If file handle was obtained by our opening it (when map is called with a path,
@@ -342,7 +342,7 @@ void basic_mmap<CharT>::unmap()
 
     // Reset fields to their default values.
     data_ = nullptr;
-    length_ = mapped_length_ = 0;
+    num_bytes_ = num_mapped_bytes_ = 0;
     file_handle_ = INVALID_HANDLE_VALUE;
 #ifdef _WIN32
     file_mapping_handle_ = INVALID_HANDLE_VALUE;
@@ -377,7 +377,7 @@ template<typename CharT>
 void basic_mmap<CharT>::set_length(const size_type length) noexcept
 {
     if(length > this->length() - offset()) { throw std::invalid_argument(""); } 
-    length_ = length;
+    num_bytes_ = to_byte_size(length);
 }
 
 template<typename CharT>
@@ -386,7 +386,7 @@ void basic_mmap<CharT>::set_offset(const size_type offset) noexcept
     if(offset >= mapped_length()) { throw std::invalid_argument(""); }
     const auto diff = offset - this->offset();
     data_ += diff;
-    length_ += -1 * diff;
+    num_bytes_ += -1 * to_byte_size(diff);
 }
 
 template<typename CharT>
@@ -400,8 +400,8 @@ void basic_mmap<CharT>::swap(basic_mmap<CharT>& other)
 #ifdef _WIN32
         swap(file_mapping_handle_, other.file_mapping_handle_); 
 #endif
-        swap(length_, other.length_); 
-        swap(mapped_length_, other.mapped_length_); 
+        swap(num_bytes_, other.num_bytes_); 
+        swap(num_mapped_bytes_, other.num_mapped_bytes_); 
         swap(is_handle_internal_, other.is_handle_internal_); 
     }
 }

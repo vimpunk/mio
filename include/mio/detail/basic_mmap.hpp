@@ -79,9 +79,9 @@ private:
 #endif
 
     // Length, in bytes, requested by user, which may not be the length of the full
-    // mapping.
-    size_type length_ = 0;
-    size_type mapped_length_ = 0;
+    // mapping, and the entire length of the full mapping.
+    size_type num_bytes_ = 0;
+    size_type num_mapped_bytes_ = 0;
 
     // Letting user map a file using both an existing file handle and a path introcudes
     // some complexity in that we must not close the file handle if user provided it,
@@ -105,9 +105,9 @@ public:
     bool is_mapped() const noexcept;
     bool empty() const noexcept { return length() == 0; }
 
-    size_type offset() const noexcept { return mapped_length_ - length_; }
-    size_type length() const noexcept { return length_; }
-    size_type mapped_length() const noexcept { return mapped_length_; }
+    size_type offset() const noexcept { return to_char_size(num_mapped_bytes_ - num_bytes_); }
+    size_type length() const noexcept { return to_char_size(num_bytes_); }
+    size_type mapped_length() const noexcept { return to_char_size(num_mapped_bytes_); }
 
     pointer data() noexcept { return data_; }
     const_pointer data() const noexcept { return data_; }
@@ -135,9 +135,9 @@ public:
     void set_offset(const size_type offset) noexcept;
 
     template<typename String>
-    void map(String& path, size_type offset, size_type length,
+    void map(String& path, size_type offset, size_type num_bytes,
         access_mode mode, std::error_code& error);
-    void map(handle_type handle, size_type offset, size_type length,
+    void map(handle_type handle, size_type offset, size_type num_bytes,
         access_mode mode, std::error_code& error);
     void unmap();
     void close();
@@ -150,8 +150,18 @@ private:
 
     pointer get_mapping_start() noexcept;
 
-    void map(const size_type offset, size_type length,
+    void map(const size_type offset, size_type num_bytes,
         const access_mode mode, std::error_code& error);
+
+    static size_type to_char_size(const size_type num_bytes) noexcept
+    {
+        return num_bytes >> (sizeof(CharT) - 1);
+    }
+
+    static size_type to_byte_size(const size_type num_chars) noexcept
+    {
+        return num_chars << (sizeof(CharT) - 1);
+    }
 };
 
 template<typename CharT>

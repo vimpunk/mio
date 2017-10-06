@@ -1,5 +1,5 @@
 # mio
-A simple header-only cross-platform C++14 memory mapping library.
+A simple header-only cross-platform C++11 memory mapping library.
 
 ## Example
 ```c++
@@ -42,10 +42,14 @@ int main()
     // Or just change one value with the subscript operator.
     mmap2[mmap2.size() / 2] = 42;
 
+    // Don't forget to flush changes to disk, which is NOT done by the constructor for
+    // more explicit control of this potentially expensive operation.
+    mmap2.sync();
+
     // You can also create a mapping using the constructor, which throws a
     // std::error_code upon failure.
+    const auto page_size = mio::page_size();
     try {
-        const auto page_size = mio::page_size();
         mio::mmap_sink mmap3("another/path/to/file",
             offset_type(page_size), length_type(page_size));
         // ...
@@ -58,6 +62,15 @@ int main()
     // accounted for by mio, so appropriate conversions need be done by the user).
     using wmmap_source = mio::basic_mmap_source<wchar_t>;
     using i32mmap_source = mio::basic_mmap_source<int32_t>;
+
+    // mio::basic_mmap<> has std::unique_ptr semantics, but if multiple copies to the
+    // same mapping is required, use mio::basic_shared_mmap<> for std::shared_ptr
+    // semantics, which has the same interface as mio::basic_mmap<>.
+    mio::shared_mmap_source shared_mmap1("path", offset_type(0), length_type(page_size));
+    mio::shared_mmap_source shared_mmap2(std::move(mmap1)); // or use operator=
+    mio::shared_mmap_source shared_mmap3(std::make_shared<mio::mmap_source>(mmap1)); // or use operator=
+    mio::shared_mmap_source shared_mmap4;
+    shared_mmap4.map("path", offset_type(0), length_type(page_size), error);
 }
 ```
 

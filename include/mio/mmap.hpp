@@ -141,16 +141,16 @@ public:
      * actual number of bytes that were mapped, also divided by `sizeof(CharT)`, which
      * is a multiple of the underlying operating system's page allocation granularity.
      */
-    size_type size() const noexcept { return char_size(impl_.length()); }
-    size_type length() const noexcept { return char_size(impl_.length()); }
-    size_type mapped_length() const noexcept { return char_size(impl_.mapped_length()); }
+    size_type size() const noexcept { return impl_.length(); }
+    size_type length() const noexcept { return impl_.length(); }
+    size_type mapped_length() const noexcept { return impl_.mapped_length(); }
 
     /**
      * Returns the offset, relative to the file's start, at which the mapping was
      * requested to be created, expressed in multiples of `sizeof(CharT)` rather than
      * in bytes.
      */
-    size_type offset() const noexcept { return char_size(impl_.offset()); }
+    size_type offset() const noexcept { return impl_.offset(); }
 
     /**
      * Returns a pointer to the first requested byte, or `nullptr` if no memory mapping
@@ -215,8 +215,8 @@ public:
      * If `offset` is larger than the number of bytes mapped, an std::invalid_argument
      * exception is thrown.
      */
-    void set_length(const size_type length) noexcept { impl_.set_length(byte_size(length)); }
-    void set_offset(const size_type offset) noexcept { impl_.set_offset(byte_size(offset)); }
+    void set_length(const size_type length) noexcept { impl_.set_length(length); }
+    void set_offset(const size_type offset) noexcept { impl_.set_offset(offset); }
 
     /**
      * Establishes a memory mapping with AccessMode. If the mapping is unsuccesful, the
@@ -326,18 +326,6 @@ public:
     friend bool operator>=(const basic_mmap& a, const basic_mmap& b)
     {
         return a.impl_ >= b.impl_;
-    }
-
-private:
-
-    static size_type char_size(const size_type num_bytes) noexcept
-    {
-        return num_bytes >> (sizeof(CharT) - 1);
-    }
-
-    static size_type byte_size(const size_type num_bytes) noexcept
-    {
-        return num_bytes << (sizeof(CharT) - 1);
     }
 };
 
