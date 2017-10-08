@@ -244,15 +244,16 @@ public:
      * then used to memory map the requested region. Upon failure, `error` is set to
      * indicate the reason and the object remains in an unmapped state.
      *
-     * When specifying `offset`, there is no need to worry about providing
-     * a value that is aligned with the operating system's page allocation granularity.
-     * This is adjusted by the implementation such that the first requested byte (as
-     * returned by `data` or `begin`), so long as `offset` is valid, will be at `offset`
-     * from the start of the file.
+     * `offset` is the number of bytes, relative to the start of the file, where the
+     * mapping should begin. When specifying it, there is no need to worry about
+     * providing a value that is aligned with the operating system's page allocation
+     * granularity. This is adjusted by the implementation such that the first requested
+     * byte (as returned by `data` or `begin`), so long as `offset` is valid, will be at
+     * `offset` from the start of the file.
      *
-     * `length` must be the number of bytes to map, regardless of the underlying
+     * `num_bytes` must be the number of bytes to map, regardless of the underlying
      * value_type's size. That is, if CharT is a wide char, the value returned by
-     * the `size` and `length` methods is not the same as this `length` value (TODO
+     * the `size` and `length` methods is not the same as this `num_bytes` value (TODO
      * this can be confusing).
      * If it is `map_entire_file`, a mapping of the entire file is created.
      */
@@ -268,19 +269,21 @@ public:
      * reason is reported via `error` and the object remains in a state as if this
      * function hadn't been called.
      *
-     * `handle` must be a valid file handle, which is then used to memory map the
-     * requested region. Upon failure, `error` is set to indicate the reason and the
-     * object remains in an unmapped state.
+     * `path`, which must be a path to an existing file, is used to retrieve a file
+     * handle (which is closed when the object destructs or `unmap` is called), which is
+     * then used to memory map the requested region. Upon failure, `error` is set to
+     * indicate the reason and the object remains in an unmapped state.
      *
-     * When specifying `offset`, there is no need to worry about providing
-     * a value that is aligned with the operating system's page allocation granularity.
-     * This is adjusted by the implementation such that the first requested byte (as
-     * returned by `data` or `begin`), so long as `offset` is valid, will be at `offset`
-     * from the start of the file.
+     * `offset` is the number of bytes, relative to the start of the file, where the
+     * mapping should begin. When specifying it, there is no need to worry about
+     * providing a value that is aligned with the operating system's page allocation
+     * granularity. This is adjusted by the implementation such that the first requested
+     * byte (as returned by `data` or `begin`), so long as `offset` is valid, will be at
+     * `offset` from the start of the file.
      *
-     * `length` must be the number of bytes to map, regardless of the underlying
+     * `num_bytes` must be the number of bytes to map, regardless of the underlying
      * value_type's size. That is, if CharT is a wide char, the value returned by
-     * the `size` and `length` methods is not the same as this `length` value (TODO
+     * the `size` and `length` methods is not the same as this `num_bytes` value (TODO
      * this can be confusing).
      * If it is `map_entire_file`, a mapping of the entire file is created.
      */

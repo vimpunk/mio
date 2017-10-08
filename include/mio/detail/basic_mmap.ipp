@@ -38,9 +38,6 @@
 namespace mio {
 namespace detail {
 
-// Generic handle type for use by free functions.
-using handle_type = basic_mmap<char>::handle_type;
-
 #ifdef _WIN32
 inline DWORD int64_high(int64_t n) noexcept
 {
@@ -65,7 +62,7 @@ inline std::error_code last_error() noexcept
 }
 
 template<typename Path>
-handle_type open_file(const Path& path, const access_mode mode, std::error_code& error)
+file_handle_type open_file(const Path& path, const access_mode mode, std::error_code& error)
 {
     error.clear();
     if(detail::empty(path))
@@ -92,7 +89,7 @@ handle_type open_file(const Path& path, const access_mode mode, std::error_code&
     return handle;
 }
 
-inline int64_t query_file_size(handle_type handle, std::error_code& error)
+inline int64_t query_file_size(file_handle_type handle, std::error_code& error)
 {
     error.clear();
 #ifdef _WIN32

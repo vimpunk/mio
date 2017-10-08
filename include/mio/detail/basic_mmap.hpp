@@ -45,6 +45,12 @@ enum class access_mode
     write
 };
 
+#ifdef _WIN32
+    using file_handle_type = HANDLE;
+#else
+    using file_handle_type = int;
+#endif
+
 template<typename CharT> struct basic_mmap
 {
     using value_type = CharT;
@@ -59,11 +65,7 @@ template<typename CharT> struct basic_mmap
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     using iterator_category = std::random_access_iterator_tag;
-#ifdef _WIN32
-    using handle_type = HANDLE;
-#else
-    using handle_type = int;
-#endif
+    using handle_type = file_handle_type;
 
 private:
 
@@ -108,6 +110,8 @@ public:
     size_type offset() const noexcept { return to_char_size(num_mapped_bytes_ - num_bytes_); }
     size_type length() const noexcept { return to_char_size(num_bytes_); }
     size_type mapped_length() const noexcept { return to_char_size(num_mapped_bytes_); }
+    size_type length_in_bytes() const noexcept { return num_bytes_; }
+    size_type mapped_length_in_bytes() const noexcept { return num_mapped_bytes_; }
 
     pointer data() noexcept { return data_; }
     const_pointer data() const noexcept { return data_; }
