@@ -51,9 +51,9 @@ enum class access_mode
     using file_handle_type = int;
 #endif
 
-template<typename CharT> struct basic_mmap
+template<typename ByteT> struct basic_mmap
 {
-    using value_type = CharT;
+    using value_type = ByteT;
     using size_type = int64_t;
     using reference = value_type&;
     using const_reference = const value_type&;
@@ -66,6 +66,8 @@ template<typename CharT> struct basic_mmap
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
     using iterator_category = std::random_access_iterator_tag;
     using handle_type = file_handle_type;
+
+    static_assert(sizeof(ByteT) == sizeof(char), "ByteT must be the same size as char.");
 
 private:
 
@@ -82,8 +84,8 @@ private:
 
     // Length, in bytes, requested by user, which may not be the length of the full
     // mapping, and the entire length of the full mapping.
-    size_type num_bytes_ = 0;
-    size_type num_mapped_bytes_ = 0;
+    size_type length_ = 0;
+    size_type mapped_length_ = 0;
 
     // Letting user map a file using both an existing file handle and a path introcudes
     // some complexity in that we must not close the file handle if user provided it,
@@ -103,15 +105,13 @@ public:
     handle_type file_handle() const noexcept { return file_handle_; }
     handle_type mapping_handle() const noexcept;
 
-    bool is_open() const noexcept;
+    bool is_open() const noexcept { return file_handle_ != INVALID_HANDLE_VALUE; }
     bool is_mapped() const noexcept;
     bool empty() const noexcept { return length() == 0; }
 
-    size_type offset() const noexcept { return to_char_size(num_mapped_bytes_ - num_bytes_); }
-    size_type length() const noexcept { return to_char_size(num_bytes_); }
-    size_type mapped_length() const noexcept { return to_char_size(num_mapped_bytes_); }
-    size_type length_in_bytes() const noexcept { return num_bytes_; }
-    size_type mapped_length_in_bytes() const noexcept { return num_mapped_bytes_; }
+    size_type offset() const noexcept { return mapped_length_ - length_; }
+    size_type length() const noexcept { return length_; }
+    size_type mapped_length() const noexcept { return mapped_length_; }
 
     pointer data() noexcept { return data_; }
     const_pointer data() const noexcept { return data_; }
@@ -135,56 +135,33 @@ public:
     reference operator[](const size_type i) noexcept { return data_[i]; }
     const_reference operator[](const size_type i) const noexcept { return data_[i]; }
 
-    void set_length(const size_type length) noexcept;
-    void set_offset(const size_type offset) noexcept;
-
     template<typename String>
-    void map(String& path, size_type offset, size_type num_bytes,
+    void map(String& path, size_type offset, size_type length,
         access_mode mode, std::error_code& error);
-    void map(handle_type handle, size_type offset, size_type num_bytes,
+    void map(handle_type handle, size_type offset, size_type length,
         access_mode mode, std::error_code& error);
     void unmap();
-    void close();
-
     void sync(std::error_code& error);
 
     void swap(basic_mmap& other);
 
 private:
 
-    pointer get_mapping_start() noexcept;
-
-    void map(const size_type offset, size_type num_bytes,
-        const access_mode mode, std::error_code& error);
-
-    static size_type to_char_size(const size_type num_bytes) noexcept
-    {
-        return num_bytes >> (sizeof(CharT) - 1);
-    }
-
-    static size_type to_byte_size(const size_type num_chars) noexcept
-    {
-        return num_chars << (sizeof(CharT) - 1);
-    }
+    pointer get_mapping_start() noexcept { return !data() ? nullptr : data() - offset(); }
 };
 
-template<typename CharT>
-bool operator==(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b);
-
-template<typename CharT>
-bool operator!=(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b);
-
-template<typename CharT>
-bool operator<(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b);
-
-template<typename CharT>
-bool operator<=(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b);
-
-template<typename CharT>
-bool operator>(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b);
-
-template<typename CharT>
-bool operator>=(const basic_mmap<CharT>& a, const basic_mmap<CharT>& b);
+template<typename ByteT>
+bool operator==(const basic_mmap<ByteT>& a, const basic_mmap<ByteT>& b);
+template<typename ByteT>
+bool operator!=(const basic_mmap<ByteT>& a, const basic_mmap<ByteT>& b);
+template<typename ByteT>
+bool operator<(const basic_mmap<ByteT>& a, const basic_mmap<ByteT>& b);
+template<typename ByteT>
+bool operator<=(const basic_mmap<ByteT>& a, const basic_mmap<ByteT>& b);
+template<typename ByteT>
+bool operator>(const basic_mmap<ByteT>& a, const basic_mmap<ByteT>& b);
+template<typename ByteT>
+bool operator>=(const basic_mmap<ByteT>& a, const basic_mmap<ByteT>& b);
 
 } // namespace detail
 } // namespace mio

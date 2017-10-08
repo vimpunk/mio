@@ -40,10 +40,10 @@ namespace mio {
  */
 template<
     access_mode AccessMode,
-    typename CharT
+    typename ByteT
 > class basic_shared_mmap
 {
-    using impl_type = basic_mmap<AccessMode, CharT>;
+    using impl_type = basic_mmap<AccessMode, ByteT>;
     std::shared_ptr<impl_type> pimpl_;
 
 public:
@@ -92,15 +92,8 @@ public:
     }
 
     /**
-     * `path` must be a path to an existing file, which is then used to memory map the
-     * requested region. Upon failure a `std::error_code` is thrown, detailing the
-     * cause of the error, and the object remains in an unmapped state.
-     *
-     * When specifying `offset`, there is no need to worry about providing
-     * a value that is aligned with the operating system's page allocation granularity.
-     * This is adjusted by the implementation such that the first requested byte (as
-     * returned by `data` or `begin`), so long as `offset` is valid, will be at `offset`
-     * from the start of the file.
+     * The same as invoking the `map` function, except any error that may occur while
+     * establishing the mapping is thrown.
      */
     template<typename String>
     basic_shared_mmap(const String& path, const size_type offset, const size_type length)
@@ -111,15 +104,8 @@ public:
     }
 
     /**
-     * `handle` must be a valid file handle, which is then used to memory map the
-     * requested region. Upon failure a `std::error_code` is thrown, detailing the
-     * cause of the error, and the object remains in an unmapped state.
-     *
-     * When specifying `offset`, there is no need to worry about providing
-     * a value that is aligned with the operating system's page allocation granularity.
-     * This is adjusted by the implementation such that the first requested byte (as
-     * returned by `data` or `begin`), so long as `offset` is valid, will be at `offset`
-     * from the start of the file.
+     * The same as invoking the `map` function, except any error that may occur while
+     * establishing the mapping is thrown.
      */
     basic_shared_mmap(const handle_type handle, const size_type offset, const size_type length)
     {
@@ -153,9 +139,9 @@ public:
 
     /**
      * `size` and `length` both return the logical length, i.e. the number of bytes
-     * user requested divided by `sizeof(CharT)`, while `mapped_length` returns the
-     * actual number of bytes that were mapped, also divided by `sizeof(CharT)`, which
-     * is a multiple of the underlying operating system's page allocation granularity.
+     * user requested to be mapped, while `mapped_length` returns the actual number of
+     * bytes that were mapped which is a multiple of the underlying operating system's
+     * page allocation granularity.
      */
     size_type size() const noexcept { return pimpl_->length(); }
     size_type length() const noexcept { return pimpl_->length(); }
@@ -163,8 +149,7 @@ public:
 
     /**
      * Returns the offset, relative to the file's start, at which the mapping was
-     * requested to be created, expressed in multiples of `sizeof(CharT)` rather than
-     * in bytes.
+     * requested to be created.
      */
     size_type offset() const noexcept { return pimpl_->offset(); }
 
@@ -217,24 +202,6 @@ public:
     const_reference operator[](const size_type i) const noexcept { return (*pimpl_)[i]; }
 
     /**
-     * These functions can be used to alter the _conceptual_ size of the mapping.
-     * That is, the actual mapped memory region is not affected, just the conceptual
-     * range of memory on which the accessor methods ('data', 'begin', `operator[]` etc)
-     * operate.
-     *
-     * If `length` is larger than the number of bytes mapped minus the offset, an
-     * std::invalid_argument exception is thrown.
-     *
-     * `length` must be the conceptual length of the mapping, that is, the number of
-     * bytes mapped divided by `sizeof(CharT)`, i.e. the Container's size.
-     *
-     * If `offset` is larger than the number of bytes mapped, an std::invalid_argument
-     * exception is thrown.
-     */
-    void set_length(const size_type length) noexcept { pimpl_->set_length(length); }
-    void set_offset(const size_type offset) noexcept { pimpl_->set_offset(offset); }
-
-    /**
      * Establishes a memory mapping with AccessMode. If the mapping is unsuccesful, the
      * reason is reported via `error` and the object remains in a state as if this
      * function hadn't been called.
@@ -251,11 +218,8 @@ public:
      * byte (as returned by `data` or `begin`), so long as `offset` is valid, will be at
      * `offset` from the start of the file.
      *
-     * `num_bytes` must be the number of bytes to map, regardless of the underlying
-     * value_type's size. That is, if CharT is a wide char, the value returned by
-     * the `size` and `length` methods is not the same as this `num_bytes` value (TODO
-     * this can be confusing).
-     * If it is `map_entire_file`, a mapping of the entire file is created.
+     * `length` is the number of bytes to map. It may be `map_entire_file`, in which
+     * case a mapping of the entire file is created.
      */
     template<typename String>
     void map(const String& path, const size_type offset,
@@ -269,10 +233,9 @@ public:
      * reason is reported via `error` and the object remains in a state as if this
      * function hadn't been called.
      *
-     * `path`, which must be a path to an existing file, is used to retrieve a file
-     * handle (which is closed when the object destructs or `unmap` is called), which is
-     * then used to memory map the requested region. Upon failure, `error` is set to
-     * indicate the reason and the object remains in an unmapped state.
+     * `handle`, which must be a valid file handle, which is used to memory map the
+     * requested region. Upon failure, `error` is set to indicate the reason and the
+     * object remains in an unmapped state.
      *
      * `offset` is the number of bytes, relative to the start of the file, where the
      * mapping should begin. When specifying it, there is no need to worry about
@@ -281,11 +244,8 @@ public:
      * byte (as returned by `data` or `begin`), so long as `offset` is valid, will be at
      * `offset` from the start of the file.
      *
-     * `num_bytes` must be the number of bytes to map, regardless of the underlying
-     * value_type's size. That is, if CharT is a wide char, the value returned by
-     * the `size` and `length` methods is not the same as this `num_bytes` value (TODO
-     * this can be confusing).
-     * If it is `map_entire_file`, a mapping of the entire file is created.
+     * `length` is the number of bytes to map. It may be `map_entire_file`, in which
+     * case a mapping of the entire file is created.
      */
     void map(const handle_type handle, const size_type offset,
         const size_type length, std::error_code& error)
@@ -367,15 +327,15 @@ private:
  * This is the basis for all read-only mmap objects and should be preferred over
  * directly using basic_shared_mmap.
  */
-template<typename CharT>
-using basic_shared_mmap_source = basic_shared_mmap<access_mode::read, CharT>;
+template<typename ByteT>
+using basic_shared_mmap_source = basic_shared_mmap<access_mode::read, ByteT>;
 
 /**
  * This is the basis for all read-write mmap objects and should be preferred over
  * directly using basic_shared_mmap.
  */
-template<typename CharT>
-using basic_shared_mmap_sink = basic_shared_mmap<access_mode::write, CharT>;
+template<typename ByteT>
+using basic_shared_mmap_sink = basic_shared_mmap<access_mode::write, ByteT>;
 
 /**
  * These aliases cover the most common use cases, both representing a raw byte stream

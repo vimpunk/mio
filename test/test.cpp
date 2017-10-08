@@ -14,6 +14,12 @@ int handle_error(const std::error_code& error)
     return error.value();
 }
 
+// Just make sure this compiles.
+#ifdef CXX17
+# include <cstddef>
+using mmap_source = mio::basic_mmap_source<std::byte>;
+#endif
+
 int main()
 {
     const char* path = "test-file";
@@ -96,16 +102,6 @@ int main()
         // Make sure custom types compile.
         mio::ummap_source _1;
         mio::shared_ummap_source _2;
-    }
-
-    const auto page_size = mio::page_size();
-    {
-        // Now check if an mmap with a wider char type reports the correct size.
-        using u16mmap_source = mio::basic_mmap_source<char16_t>;
-        u16mmap_source wide_mmap = mio::make_mmap<u16mmap_source>(path, 0, page_size, error);
-        if(error) { return handle_error(error); }
-
-        assert(wide_mmap.size() == page_size / 2);
     }
 
     std::printf("all tests passed!\n");
