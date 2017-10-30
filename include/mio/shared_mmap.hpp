@@ -34,9 +34,6 @@ namespace mio {
  *
  * This is not the default behaviour of `basic_mmap` to avoid allocating on the heap if
  * shared semantics are not required.
- *
- * If basic_shared_mmap is not a valid mappig (i.e. owns no `basic_mmap`), using its
- * methods is undefined behaviour.
  */
 template<
     access_mode AccessMode,
@@ -128,14 +125,14 @@ public:
     handle_type mapping_handle() const noexcept { return pimpl_->mapping_handle(); }
 
     /** Returns whether a valid memory mapping has been created. */
-    bool is_open() const noexcept { return pimpl_->is_open(); }
+    bool is_open() const noexcept { return pimpl_ && pimpl_->is_open(); }
 
     /**
      * Returns if the length that was mapped was 0, in which case no mapping was
      * established, i.e. `is_open` returns false. This function is provided so that
      * this class has some Container semantics.
      */
-    bool empty() const noexcept { return pimpl_->empty(); }
+    bool empty() const noexcept { return !pimpl_ || pimpl_->empty(); }
 
     /**
      * `size` and `length` both return the logical length, i.e. the number of bytes
@@ -143,15 +140,16 @@ public:
      * bytes that were mapped which is a multiple of the underlying operating system's
      * page allocation granularity.
      */
-    size_type size() const noexcept { return pimpl_->length(); }
-    size_type length() const noexcept { return pimpl_->length(); }
-    size_type mapped_length() const noexcept { return pimpl_->mapped_length(); }
+    size_type size() const noexcept { return pimpl_ ? pimpl_->length() : 0; }
+    size_type length() const noexcept { return pimpl_ ? pimpl_->length() : 0; }
+    size_type mapped_length() const noexcept
+    { return pimpl_ ? pimpl_->mapped_length() : 0; }
 
     /**
      * Returns the offset, relative to the file's start, at which the mapping was
      * requested to be created.
      */
-    size_type offset() const noexcept { return pimpl_->offset(); }
+    size_type offset() const noexcept { return pimpl_ ? pimpl_->offset() : 0; }
 
     /**
      * Returns a pointer to the first requested byte, or `nullptr` if no memory mapping
@@ -161,7 +159,7 @@ public:
         access_mode A = AccessMode,
         typename = typename std::enable_if<A == access_mode::write>::type
     > pointer data() noexcept { return pimpl_->data(); }
-    const_pointer data() const noexcept { return pimpl_->data(); }
+    const_pointer data() const noexcept { return pimpl_ ? pimpl_->data() : nullptr; }
 
     /**
      * Returns an iterator to the first requested byte, if a valid memory mapping

@@ -1,5 +1,5 @@
 # mio
-A simple header-only cross-platform C++11 memory mapping library.
+A simple header-only cross-platform C++11 memory mapping library with an MIT license.
 
 ## Example
 There are three ways to a create a mapping:
@@ -22,21 +22,23 @@ mio::mmap_source mmap;
 mmap.map(path, offset, size_to_map, error);
 ```
 
-Moreover, in each case, you can provide either some string type for the file's path, or you can use an existing, valid file handle. However, mio does not check whether the provided file descriptor has the same access permissions as the desired mapping, so the mapping may fail.
+Moreover, in each case, you can provide either some string type for the file's path, or you can use an existing, valid file handle.
 ```c++
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <mio/mmap.hpp>
+#include <algorithm>
 
 int main()
 {
-    // NOTE: error checking omitted for brevity.
+    // NOTE: error handling omitted for brevity.
     const int fd = open("file.txt", O_RDONLY);
     mio::mmap_source mmap(fd, 0, mio::map_entire_file);
     // ...
 }
 ```
+However, mio does not check whether the provided file descriptor has the same access permissions as the desired mapping, so the mapping may fail.
 
 General usage:
 ```c++
@@ -60,9 +62,14 @@ int main()
     mio::mmap_sink rw_mmap = mio::make_mmap_sink(
         "file.txt", 0, mio::map_entire_file, error);
     if(error) { return handle_error(error); }
+    assert(rw_mmap.is_open());
+    assert(!rw_mmap.empty());
 
-    // Iterate through the mapped region just as if it were any other container, and
-    // change each byte's value (since this is a read-write mapping).
+    // You can use any iterator based function.
+    std::fill(rw_mmap.begin(), rw_mmap.end(), 0);
+
+    // Or manually iterate through the mapped region just as if it were any other 
+    // container, and change each byte's value (since this is a read-write mapping).
     for(auto& b : rw_mmap) {
         b += 10;
     }
@@ -91,7 +98,7 @@ int main()
 }
 ```
 
-`mio::basic_mmap` has move-only semantics, but if multiple copies to the same mapping is required, use `mio::basic_shared_mmap` which has `std::shared_ptr` semantics and has the same interface as `mio::basic_mmap`.
+`mio::basic_mmap` move-only, but if multiple copies to the same mapping is required, use `mio::basic_shared_mmap` which has `std::shared_ptr` semantics and has the same interface as `mio::basic_mmap`.
 ```c++
 #include <mio/shared_mmap.hpp>
 
@@ -102,10 +109,13 @@ mio::shared_mmap_source shared_mmap4;
 shared_mmap4.map("path", offset, size_to_map, error);
 ```
 
-It's possible to define the character type of a byte, though aliases for the most commonly used types are provided:
+It's possible to define the type of a byte (which has to be the same width as `char`), though aliases for the most commonly ones are provided by default:
 ```c++
 using mmap_source = basic_mmap_source<char>;
 using ummap_source = basic_mmap_source<unsigned char>;
+
+using mmap_sink = basic_mmap_sink<char>;
+using ummap_sink = basic_mmap_sink<unsigned char>;
 ```
 But it may be useful to define your own types, say when using the new `std::byte` type in C++17:
 ```c++

@@ -290,11 +290,11 @@ void basic_mmap<ByteT>::map(handle_type handle, size_type offset,
     const mmap_context ctx = memory_map(handle, offset, length, mode, error);
     if(!error)
     {
-        // We must unmap any previous mapping that may have existed prior to this call.
-        // Note that this must only be invoked after the new mapping has been created
-        // in order to provide the strong guarantee that, should a mapping fail, the
-        // `map` function leaves the this instance in a state as though the function
-        // had never been called.
+        // We must unmap the previous mapping that may have existed prior to this call.
+        // Note that this must only be invoked after a new mapping has been created in
+        // order to provide the strong guarantee that, should the new mapping fail, the
+        // `map` function leaves this instance in a state as though the function had
+        // never been invoked.
         unmap();
         file_handle_ = handle;
         is_handle_internal_ = false;
@@ -354,9 +354,9 @@ void basic_mmap<ByteT>::unmap()
     if(data_) { ::munmap(const_cast<pointer>(get_mapping_start()), mapped_length_); }
 #endif
 
-    // If file handle was obtained by our opening it (when map is called with a path,
+    // If file_handle_ was obtained by our opening it (when map is called with a path,
     // rather than an existing file handle), we need to close it, otherwise it must not
-    // be closed as it may still be used outside of this basic_mmap instance.
+    // be closed as it may still be used outside this instance.
     if(is_handle_internal_)
     {
 #ifdef _WIN32

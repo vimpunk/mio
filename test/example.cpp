@@ -2,6 +2,7 @@
 #include <system_error> // for std::error_code
 #include <cstdio> // for std::printf
 #include <cassert>
+#include <algorithm>
 
 int handle_error(const std::error_code& error)
 {
@@ -19,8 +20,11 @@ int main()
         "file.txt", 0, mio::map_entire_file, error);
     if(error) { return handle_error(error); }
 
-    // Iterate through the mapped region just as if it were any other container, and
-    // change each byte's value (since this is a read-write mapping).
+    // You can use any iterator based function.
+    std::fill(rw_mmap.begin(), rw_mmap.end(), 0);
+
+    // Or manually iterate through the mapped region just as if it were any other 
+    // container, and change each byte's value (since this is a read-write mapping).
     for(auto& b : rw_mmap) {
         b += 10;
     }

@@ -65,7 +65,7 @@ public:
 
     /**
      * The default constructed mmap object is in a non-mapped state, that is, any
-     * operations that attempt to access nonexistent underlying date will result in
+     * operation that attempts to access nonexistent underlying data will result in
      * undefined behaviour/segmentation faults.
      */
     basic_mmap() = default;
