@@ -1,6 +1,7 @@
 # mio
 A simple header-only cross-platform C++11 memory mapping library with an MIT license.
 
+### Why?
 mio has been created with the goal to be easily includable (i.e. no dependencies) in any C++ project that needs memory mapped file IO without the need to pull in Boost.
 
 The primary motivation for writing this library instead of using Boost.Iostreams, was the lack of support for establishing a memory mapping with an already open file handle/descriptor. This is possible with mio.
@@ -8,7 +9,7 @@ The primary motivation for writing this library instead of using Boost.Iostreams
 Albeit a minor nitpick, Boost.Iostreams implements memory mapped file IO with a `std::shared_ptr` to provide shared semantics, even if not needed, and the overhead of the heap allocation may be unnecessary and/or unwanted.
 In mio, there are two classes to cover the two use-cases: one that is move-only (basically a zero-cost abstraction over the system specific mmapping functions), and the other that acts just like its Boost.Iostreams counterpart, with shared semantics.
 
-## Create a mapping
+### How to create a mapping
 There are three ways to do that:
 
 - Using the constructor, which throws on failure:
@@ -47,7 +48,7 @@ int main()
 ```
 However, mio does not check whether the provided file descriptor has the same access permissions as the desired mapping, so the mapping may fail.
 
-## Example
+### Example
 ```c++
 #include <mio/mmap.hpp>
 #include <system_error> // for std::error_code
@@ -132,5 +133,5 @@ using mmap_sink = mio::basic_mmap_sink<std::byte>;
 
 You can query the underlying system's page allocation granularity by invoking `mio::page_size()`, which is located in `mio/page.hpp`.
 
-## Installation
+### Installation
 mio is a header-only library, so just copy the contents in `mio/include` into your system wide include path, such as `/usr/include`, or into your project's lib folder.
