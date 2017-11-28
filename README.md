@@ -1,6 +1,5 @@
 # mio
 An easy to use header-only cross-platform C++11 memory mapping library with an MIT license.
-It has been created with the goal to be easily includable in any C++ project that needs memory mapped file IO without relying on Boost. Boost.Iostreams implements memory mapped file IO, but it uses a `std::shared_ptr` in its implementation, and the overhead of the heap allocation seems unnecessary in this case. In mio, these are two classes to cover two use-cases: one that is move-only and the other that acts just like the Boost.Iostreams counterpart, with `std::shared_ptr` semantics. Moreover, Boost.Iostreams does not support establishing a memory mapping with an already open file handle/descriptor, which mio does, and has been the primary motivation for writing this library.
 
 Please feel free to open an issue, I'll try to address any concerns as best I can.
 
