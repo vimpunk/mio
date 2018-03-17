@@ -109,7 +109,7 @@ int main()
 }
 ```
 
-`mio::basic_mmap` move-only, but if multiple copies to the same mapping is required, use `mio::basic_shared_mmap` which has `std::shared_ptr` semantics and has the same interface as `mio::basic_mmap`.
+`mio::basic_mmap` is move-only, but if multiple copies to the same mapping are needed, use `mio::basic_shared_mmap` which has `std::shared_ptr` semantics and has the same interface as `mio::basic_mmap`.
 ```c++
 #include <mio/shared_mmap.hpp>
 
@@ -120,7 +120,7 @@ mio::shared_mmap_source shared_mmap4;
 shared_mmap4.map("path", offset, size_to_map, error);
 ```
 
-It's possible to define the type of a byte (which has to be the same width as `char`), though aliases for the most commonly ones are provided by default:
+It's possible to define the type of a byte (which has to be the same width as `char`), though aliases for the most common ones are provided by default:
 ```c++
 using mmap_source = basic_mmap_source<char>;
 using ummap_source = basic_mmap_source<unsigned char>;
@@ -134,7 +134,7 @@ using mmap_source = mio::basic_mmap_source<std::byte>;
 using mmap_sink = mio::basic_mmap_sink<std::byte>;
 ```
 
-You can query the underlying system's page allocation granularity by invoking `mio::page_size()`, which is located in `mio/page.hpp`.
+Though generally not needed, since mio maps users requested offsets to page boundaries, you can query the underlying system's page allocation granularity by invoking `mio::page_size()`, which is located in `mio/page.hpp`.
 
 ### Installation
 mio is a header-only library, so just copy the contents in `mio/include` into your system wide include path, such as `/usr/include`, or into your project's lib folder.
