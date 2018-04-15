@@ -163,13 +163,16 @@ public:
 
     /**
      * Returns an iterator to the first requested byte, if a valid memory mapping
-     * exists, otherwise this function call is equivalent to invoking `end`.
+     * exists, otherwise this function call is undefined behaviour.
      */
     iterator begin() noexcept { return pimpl_->begin(); }
     const_iterator begin() const noexcept { return pimpl_->begin(); }
     const_iterator cbegin() const noexcept { return pimpl_->cbegin(); }
 
-    /** Returns an iterator one past the last requested byte. */
+    /**
+     * Returns an iterator one past the last requested byte, if a valid memory mapping
+     * exists, otherwise this function call is undefined behaviour.
+     */
     template<
         access_mode A = AccessMode,
         typename = typename std::enable_if<A == access_mode::write>::type
@@ -177,6 +180,11 @@ public:
     const_iterator end() const noexcept { return pimpl_->end(); }
     const_iterator cend() const noexcept { return pimpl_->cend(); }
 
+    /**
+     * Returns a reverse iterator to the last memory mapped byte, if a valid
+     * memory mapping exists, otherwise this function call is undefined
+     * behaviour.
+     */
     template<
         access_mode A = AccessMode,
         typename = typename std::enable_if<A == access_mode::write>::type
@@ -184,6 +192,10 @@ public:
     const_reverse_iterator rbegin() const noexcept { return pimpl_->rbegin(); }
     const_reverse_iterator crbegin() const noexcept { return pimpl_->crbegin(); }
 
+    /**
+     * Returns a reverse iterator past the first mapped byte, if a valid memory
+     * mapping exists, otherwise this function call is undefined behaviour.
+     */
     template<
         access_mode A = AccessMode,
         typename = typename std::enable_if<A == access_mode::write>::type
