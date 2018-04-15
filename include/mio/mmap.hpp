@@ -151,7 +151,10 @@ public:
      * Returns an iterator to the first requested byte, if a valid memory mapping
      * exists, otherwise this function call is equivalent to invoking `end`.
      */
-    iterator begin() noexcept { return impl_.begin(); }
+    template<
+        access_mode A = AccessMode,
+        typename = typename std::enable_if<A == access_mode::write>::type
+    > iterator begin() noexcept { return impl_.begin(); }
     const_iterator begin() const noexcept { return impl_.begin(); }
     const_iterator cbegin() const noexcept { return impl_.cbegin(); }
 
