@@ -122,7 +122,7 @@ struct mmap_context
 #endif
 };
 
-mmap_context memory_map(const file_handle_type file_handle, const int64_t offset,
+inline mmap_context memory_map(const file_handle_type file_handle, const int64_t offset,
     const int64_t length, const access_mode mode, std::error_code& error)
 {
     const int64_t aligned_offset = make_offset_page_aligned(offset);
