@@ -128,9 +128,9 @@ public:
     bool is_open() const noexcept { return pimpl_ && pimpl_->is_open(); }
 
     /**
-     * Returns if the length that was mapped was 0, in which case no mapping was
-     * established, i.e. `is_open` returns false. This function is provided so that
-     * this class has some Container semantics.
+     * Returns true if no mapping was established, that is, conceptually the
+     * same as though the length that was mapped was 0. This function is
+     * provided so that this class has Container semantics.
      */
     bool empty() const noexcept { return !pimpl_ || pimpl_->empty(); }
 
