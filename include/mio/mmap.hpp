@@ -40,15 +40,10 @@ template<
     typename ByteT
 > class basic_mmap
 {
-    static_assert(AccessMode == access_mode::read
-        || AccessMode == access_mode::write,
-        "AccessMode must be either read or write");
-
     using impl_type = detail::basic_mmap<ByteT>;
     impl_type impl_;
 
 public:
-
     using value_type = typename impl_type::value_type;
     using size_type = typename impl_type::size_type;
     using reference = typename impl_type::reference;

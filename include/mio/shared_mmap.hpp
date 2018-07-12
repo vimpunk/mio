@@ -44,7 +44,6 @@ template<
     std::shared_ptr<impl_type> pimpl_;
 
 public:
-
     using value_type = typename impl_type::value_type;
     using size_type = typename impl_type::size_type;
     using reference = typename impl_type::reference;
@@ -315,7 +314,6 @@ public:
     }
 
 private:
-
     template<typename MappingToken>
     void map_impl(const MappingToken& token, const size_type offset,
         const size_type length, std::error_code& error)

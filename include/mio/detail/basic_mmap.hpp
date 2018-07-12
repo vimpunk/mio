@@ -70,7 +70,6 @@ template<typename ByteT> struct basic_mmap
     static_assert(sizeof(ByteT) == sizeof(char), "ByteT must be the same size as char.");
 
 private:
-
     // Points to the first requested byte, and not to the actual start of the mapping.
     pointer data_ = nullptr;
 
@@ -94,7 +93,6 @@ private:
     bool is_handle_internal_;
 
 public:
-
     basic_mmap() = default;
     basic_mmap(const basic_mmap&) = delete;
     basic_mmap& operator=(const basic_mmap&) = delete;
@@ -146,7 +144,6 @@ public:
     void swap(basic_mmap& other);
 
 private:
-
     pointer get_mapping_start() noexcept { return !data() ? nullptr : data() - offset(); }
 };
 
