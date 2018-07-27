@@ -25,6 +25,8 @@
 #include <string>
 #include <system_error>
 
+#include "../page.hpp"
+
 #ifdef _WIN32
 # ifndef WIN32_LEAN_AND_MEAN
 #  define WIN32_LEAN_AND_MEAN
@@ -73,6 +75,11 @@ private:
     // Points to the first requested byte, and not to the actual start of the mapping.
     pointer data_ = nullptr;
 
+    // Length, in bytes, requested by user, which may not be the length of the full
+    // mapping, and the entire length of the full mapping.
+    size_type length_ = 0;
+    size_type mapped_length_ = 0;
+
     // On POSIX, we only need a file handle to create a mapping, while on Windows
     // systems the file handle is necessary to retrieve a file mapping handle, but any
     // subsequent operations on the mapped region must be done through the latter.
@@ -80,11 +87,6 @@ private:
 #ifdef _WIN32
     handle_type file_mapping_handle_ = INVALID_HANDLE_VALUE;
 #endif
-
-    // Length, in bytes, requested by user, which may not be the length of the full
-    // mapping, and the entire length of the full mapping.
-    size_type length_ = 0;
-    size_type mapped_length_ = 0;
 
     // Letting user map a file using both an existing file handle and a path introcudes
     // some complexity in that we must not close the file handle if user provided it,
@@ -135,9 +137,9 @@ public:
 
     template<typename String>
     void map(String& path, size_type offset, size_type length,
-        access_mode mode, std::error_code& error);
+        access_mode mode, std::error_code& error, cache_hint hint);
     void map(handle_type handle, size_type offset, size_type length,
-        access_mode mode, std::error_code& error);
+        access_mode mode, std::error_code& error, cache_hint hint);
     void unmap();
     void sync(std::error_code& error);
 

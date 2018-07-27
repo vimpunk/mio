@@ -92,10 +92,10 @@ public:
      * establishing the mapping is thrown.
      */
     template<typename String>
-    basic_shared_mmap(const String& path, const size_type offset, const size_type length)
+    basic_shared_mmap(const String& path, const size_type offset, const size_type length, const cache_hint hint = cache_hint::normal)
     {
         std::error_code error;
-        map(path, offset, length, error);
+        map(path, offset, length, error, hint);
         if(error) { throw error; }
     }
 
@@ -103,10 +103,11 @@ public:
      * The same as invoking the `map` function, except any error that may occur while
      * establishing the mapping is thrown.
      */
-    basic_shared_mmap(const handle_type handle, const size_type offset, const size_type length)
+    basic_shared_mmap(const handle_type handle, const size_type offset,
+            const size_type length)
     {
         std::error_code error;
-        map(handle, offset, length, error);
+        map(handle, offset, length, error, cache_hint::normal);
         if(error) { throw error; }
     }
 
@@ -231,10 +232,10 @@ public:
      * case a mapping of the entire file is created.
      */
     template<typename String>
-    void map(const String& path, const size_type offset,
-        const size_type length, std::error_code& error)
+    void map(const String& path, const size_type offset, const size_type length,
+            std::error_code& error, const cache_hint hint = cache_hint::normal)
     {
-        map_impl(path, offset, length, error);
+        map_impl(path, offset, length, error, hint);
     }
 
     /**
@@ -257,9 +258,9 @@ public:
      * case a mapping of the entire file is created.
      */
     void map(const handle_type handle, const size_type offset,
-        const size_type length, std::error_code& error)
+            const size_type length, std::error_code& error)
     {
-        map_impl(handle, offset, length, error);
+        map_impl(handle, offset, length, error, cache_hint::normal);
     }
 
     /**
@@ -316,17 +317,17 @@ public:
 private:
     template<typename MappingToken>
     void map_impl(const MappingToken& token, const size_type offset,
-        const size_type length, std::error_code& error)
+        const size_type length, std::error_code& error, const cache_hint hint)
     {
         if(!pimpl_)
         {
-            mmap_type mmap = make_mmap<mmap_type>(token, offset, length, error);
+            mmap_type mmap = make_mmap<mmap_type>(token, offset, length, error, hint);
             if(error) { return; }
             pimpl_ = std::make_shared<mmap_type>(std::move(mmap));
         }
         else
         {
-            pimpl_->map(token, offset, length, AccessMode, error);
+            pimpl_->map(token, offset, length, AccessMode, error, hint);
         }
     }
 };

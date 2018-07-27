@@ -17,7 +17,7 @@ int main()
     // length of the mapping is otherwise expected, with the factory method.
     std::error_code error;
     mio::mmap_sink rw_mmap = mio::make_mmap_sink(
-        "file.txt", 0, mio::map_entire_file, error);
+        "file.txt", 0, mio::map_entire_file, error, mio::cache_hint::random);
     if (error) { return handle_error(error); }
 
     // You can use any iterator based function.

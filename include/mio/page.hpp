@@ -66,6 +66,18 @@ inline size_t make_offset_page_aligned(size_t offset) noexcept
     return offset / page_size_ * page_size_;
 }
 
+enum class cache_hint
+{
+    // No special treatment (this is the default).
+    normal,
+    // Expect page references in random order, so decrease read-ahead.
+    random,
+    // Expect page references in sequential order, which instructs the kernel to
+    // aggressively read ahead the mapped pages and free them soon after
+    // accessing them.
+    sequential,
+};
+
 } // namespace mio
 
 #endif // MIO_PAGE_HEADER

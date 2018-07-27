@@ -22,6 +22,7 @@
 #define MIO_MMAP_HEADER
 
 #include "detail/basic_mmap.hpp"
+#include "page.hpp"
 
 #include <system_error>
 
@@ -70,10 +71,11 @@ public:
      * establishing the mapping is thrown.
      */
     template<typename String>
-    basic_mmap(const String& path, const size_type offset, const size_type length)
+    basic_mmap(const String& path, const size_type offset, const size_type length,
+            const cache_hint hint = cache_hint::normal)
     {
         std::error_code error;
-        map(path, offset, length, error);
+        map(path, offset, length, error, hint);
         if(error) { throw error; }
     }
 
@@ -84,7 +86,7 @@ public:
     basic_mmap(const handle_type handle, const size_type offset, const size_type length)
     {
         std::error_code error;
-        map(handle, offset, length, error);
+        map(handle, offset, length, error, cache_hint::normal);
         if(error) { throw error; }
     }
 
@@ -216,10 +218,10 @@ public:
      * case a mapping of the entire file is created.
      */
     template<typename String>
-    void map(const String& path, const size_type offset,
-        const size_type length, std::error_code& error)
+    void map(const String& path, const size_type offset, const size_type length,
+            std::error_code& error, const cache_hint hint = cache_hint::normal)
     {
-        impl_.map(path, offset, length, AccessMode, error);
+        impl_.map(path, offset, length, AccessMode, error, hint);
     }
 
     /**
@@ -242,9 +244,9 @@ public:
      * case a mapping of the entire file is created.
      */
     void map(const handle_type handle, const size_type offset,
-        const size_type length, std::error_code& error)
+            const size_type length, std::error_code& error)
     {
-        impl_.map(handle, offset, length, AccessMode, error);
+        impl_.map(handle, offset, length, AccessMode, error, cache_hint::normal);
     }
 
     /**
@@ -330,11 +332,11 @@ using ummap_sink = basic_mmap_sink<unsigned char>;
 template<
     typename MMap,
     typename MappingToken
-> MMap make_mmap(const MappingToken& token,
-    int64_t offset, int64_t length, std::error_code& error)
+> MMap make_mmap(const MappingToken& token, const int64_t offset, const int64_t length,
+        std::error_code& error, const cache_hint hint = cache_hint::normal)
 {
     MMap mmap;
-    mmap.map(token, offset, length, error);
+    mmap.map(token, offset, length, error, hint);
     return mmap;
 }
 
@@ -346,10 +348,11 @@ template<
  * mmap_source::file_handle.
  */
 template<typename MappingToken>
-mmap_source make_mmap_source(const MappingToken& token, mmap_source::size_type offset,
-    mmap_source::size_type length, std::error_code& error)
+mmap_source make_mmap_source(const MappingToken& token,
+        const mmap_source::size_type offset, const mmap_source::size_type length,
+        std::error_code& error, const cache_hint hint = cache_hint::normal)
 {
-    return make_mmap<mmap_source>(token, offset, length, error);
+    return make_mmap<mmap_source>(token, offset, length, error, hint);
 }
 
 /**
@@ -360,10 +363,11 @@ mmap_source make_mmap_source(const MappingToken& token, mmap_source::size_type o
  * mmap_sink::file_handle.
  */
 template<typename MappingToken>
-mmap_sink make_mmap_sink(const MappingToken& token, mmap_sink::size_type offset,
-    mmap_sink::size_type length, std::error_code& error)
+mmap_sink make_mmap_sink(const MappingToken& token, const mmap_sink::size_type offset,
+        const mmap_sink::size_type length, std::error_code& error,
+        const cache_hint hint = cache_hint::normal)
 {
-    return make_mmap<mmap_sink>(token, offset, length, error);
+    return make_mmap<mmap_sink>(token, offset, length, error, hint);
 }
 
 } // namespace mio

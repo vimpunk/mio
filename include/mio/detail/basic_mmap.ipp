@@ -61,10 +61,14 @@ inline std::error_code last_error() noexcept
     return error;
 }
 
+// Windows API hints:
+// https://docs.microsoft.com/en-us/windows/desktop/memory/creating-a-view-within-a-file
+
 template<typename String>
-file_handle_type open_file(const String& path,
-    const access_mode mode, std::error_code& error)
+file_handle_type open_file(const String& path, const access_mode mode,
+        std::error_code& error, const cache_hint hint)
 {
+    // TODO implement cache_hint hint
     error.clear();
     if(detail::empty(path))
     {
@@ -72,12 +76,23 @@ file_handle_type open_file(const String& path,
         return INVALID_HANDLE_VALUE;
     }
 #ifdef _WIN32
+    const auto file_attribute = [hint]
+    {
+        switch(hint) {
+        case cache_hint::normal:
+            return FILE_ATTRIBUTE_NORMAL;
+        case cache_hint::random:
+             return FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS;
+        case cache_hint::sequential:
+             return FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN;
+        }
+    }();
     const auto handle = ::CreateFile(c_str(path),
         mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
         0,
         OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
+        file_attribute,
         0);
 #else
     const auto handle = ::open(c_str(path),
@@ -244,8 +259,8 @@ typename basic_mmap<ByteT>::handle_type basic_mmap<ByteT>::mapping_handle() cons
 
 template<typename ByteT>
 template<typename String>
-void basic_mmap<ByteT>::map(String& path, size_type offset,
-    size_type length, access_mode mode, std::error_code& error)
+void basic_mmap<ByteT>::map(String& path, size_type offset, size_type length,
+        access_mode mode, std::error_code& error, cache_hint hint)
 {
     error.clear();
     if(detail::empty(path))
@@ -253,9 +268,9 @@ void basic_mmap<ByteT>::map(String& path, size_type offset,
         error = std::make_error_code(std::errc::invalid_argument);
         return;
     }
-    const auto handle = open_file(path, mode, error);
+    const auto handle = open_file(path, mode, error, hint);
     if(error) { return; }
-    map(handle, offset, length, mode, error);
+    map(handle, offset, length, mode, error, hint);
     // This MUST be after the call to map, as that sets this to true.
     if(!error)
     {
@@ -264,8 +279,8 @@ void basic_mmap<ByteT>::map(String& path, size_type offset,
 }
 
 template<typename ByteT>
-void basic_mmap<ByteT>::map(handle_type handle, size_type offset,
-    size_type length, access_mode mode, std::error_code& error)
+void basic_mmap<ByteT>::map(handle_type handle, size_type offset, size_type length,
+        access_mode mode, std::error_code& error, cache_hint hint)
 {
     error.clear();
     if(handle == INVALID_HANDLE_VALUE)
@@ -305,6 +320,17 @@ void basic_mmap<ByteT>::map(handle_type handle, size_type offset,
         file_mapping_handle_ = ctx.file_mapping_handle;
 #endif
     }
+
+#ifndef _WIN32
+    if(hint != cache_hint::normal)
+    {
+        if(madvise(data_, mapped_length_,
+                hint == cache_hint::random ? MADV_RANDOM : MADV_SEQUENTIAL) == -1)
+        {
+            error = last_error();
+        }
+    }
+#endif
 }
 
 template<typename ByteT>
