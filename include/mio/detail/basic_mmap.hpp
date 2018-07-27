@@ -21,6 +21,8 @@
 #ifndef MIO_BASIC_MMAP_HEADER
 #define MIO_BASIC_MMAP_HEADER
 
+#include "../page.hpp"
+
 #include <iterator>
 #include <string>
 #include <system_error>
@@ -38,12 +40,6 @@ namespace mio {
 namespace detail {
 
 enum { map_entire_file = 0 };
-
-enum class access_mode
-{
-    read,
-    write
-};
 
 #ifdef _WIN32
     using file_handle_type = HANDLE;
@@ -135,9 +131,9 @@ public:
 
     template<typename String>
     void map(String& path, size_type offset, size_type length,
-        access_mode mode, std::error_code& error);
+            access_mode mode, std::error_code& error);
     void map(handle_type handle, size_type offset, size_type length,
-        access_mode mode, std::error_code& error);
+            access_mode mode, std::error_code& error);
     void unmap();
     void sync(std::error_code& error);
 

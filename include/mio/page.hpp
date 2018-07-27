@@ -33,6 +33,16 @@
 namespace mio {
 
 /**
+ * This is used by `basic_mmap` to determine whether to create a read-only or
+ * a read-write memory mapping.
+ */
+enum class access_mode
+{
+    read,
+    write
+};
+
+/**
  * Determines the operating system's page allocation granularity.
  *
  * On the first call to this function, it invokes the operating system specific syscall

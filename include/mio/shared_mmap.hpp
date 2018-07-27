@@ -78,12 +78,12 @@ public:
     }
 
     /** Initializes this object with an already established shared mmap. */
-    basic_shared_mmap(std::shared_ptr<mmap_type> mmap) : pimpl_(mmap) {}
+    basic_shared_mmap(std::shared_ptr<mmap_type> mmap) : pimpl_(std::move(mmap)) {}
 
     /** Initializes this object with an already established shared mmap. */
     basic_shared_mmap& operator=(std::shared_ptr<mmap_type> mmap)
     {
-        pimpl_ = mmap;
+        pimpl_ = std::move(mmap);
         return *this;
     }
 

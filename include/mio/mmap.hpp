@@ -22,14 +22,11 @@
 #define MIO_MMAP_HEADER
 
 #include "detail/basic_mmap.hpp"
+#include "page.hpp"
 
 #include <system_error>
 
 namespace mio {
-
-// This is used by basic_mmap to determine whether to create a read-only or a read-write
-// memory mapping. The two possible values are `read` and `write`.
-using detail::access_mode;
 
 // This value may be provided as the `length` parameter to the constructor or
 // `map`, in which case a memory mapping of the entire file is created.
