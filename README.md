@@ -140,3 +140,17 @@ Though generally not needed, since mio maps users requested offsets to page boun
 
 ### Installation
 mio is a header-only library, so just copy the contents in `mio/include` into your system wide include path, such as `/usr/include`, or into your project's lib folder.
+
+## CMake
+A `CMakeLists.txt` is provided to allow easy git submodule usage or installation.
+
+To use as a submodule, clone mio within your project's dependencies/externals folder and add:
+```
+add_subdirectory( dependencies_folder/mio )
+target_link_libraries( MyCoolProject mio )
+```
+to your project's `CMakeLists.txt` to add mio into `MyCoolProject`'s include-space.
+
+To install, do an out-of-source build(such as making a `build` folder and running `cmake ..` inside of it) and then run `sudo make install` to copy relevant include files to 
+
+The optional `BUILD_TESTS` option can be used to build unit tests(off by default) by instead using `cmake -DBUILD_TESTS=ON ..`

@@ -1,5 +1,5 @@
-#include "../include/mio/mmap.hpp"
-#include "../include/mio/shared_mmap.hpp"
+#include <mio/mmap.hpp>
+#include <mio/shared_mmap.hpp>
 
 #include <string>
 #include <fstream>
