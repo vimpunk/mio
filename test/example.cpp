@@ -1,4 +1,4 @@
-#include "../include/mio/mmap.hpp"
+#include <mio/mmap.hpp>
 #include <system_error> // for std::error_code
 #include <cstdio> // for std::printf
 #include <cassert>
