@@ -348,7 +348,6 @@ void basic_mmap<ByteT>::unmap()
     {
         ::UnmapViewOfFile(get_mapping_start());
         ::CloseHandle(file_mapping_handle_);
-        file_mapping_handle_ = INVALID_HANDLE_VALUE;
     }
 #else
     if(data_) { ::munmap(const_cast<pointer>(get_mapping_start()), mapped_length_); }

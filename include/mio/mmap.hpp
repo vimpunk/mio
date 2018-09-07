@@ -301,14 +301,14 @@ public:
 
 /**
  * This is the basis for all read-only mmap objects and should be preferred over
- * directly using basic_mmap.
+ * directly using `basic_mmap`.
  */
 template<typename ByteT>
 using basic_mmap_source = basic_mmap<access_mode::read, ByteT>;
 
 /**
  * This is the basis for all read-write mmap objects and should be preferred over
- * directly using basic_mmap.
+ * directly using `basic_mmap`.
  */
 template<typename ByteT>
 using basic_mmap_sink = basic_mmap<access_mode::write, ByteT>;
@@ -323,7 +323,7 @@ using ummap_source = basic_mmap_source<unsigned char>;
 using mmap_sink = basic_mmap_sink<char>;
 using ummap_sink = basic_mmap_sink<unsigned char>;
 
-/** Convenience factory method that constructs a mapping for any basic_mmap<> type. */
+/** Convenience factory method that constructs a mapping for any `basic_mmap` type. */
 template<
     typename MMap,
     typename MappingToken
@@ -340,7 +340,7 @@ template<
  *
  * MappingToken may be a String (`std::string`, `std::string_view`, `const char*`,
  * `std::filesystem::path`, `std::vector<char>`, or similar), or a
- * mmap_source::file_handle.
+ * `mmap_source::handle_type`.
  */
 template<typename MappingToken>
 mmap_source make_mmap_source(const MappingToken& token, mmap_source::size_type offset,
@@ -354,7 +354,7 @@ mmap_source make_mmap_source(const MappingToken& token, mmap_source::size_type o
  *
  * MappingToken may be a String (`std::string`, `std::string_view`, `const char*`,
  * `std::filesystem::path`, `std::vector<char>`, or similar), or a
- * mmap_sink::file_handle.
+ * `mmap_sink::handle_type`.
  */
 template<typename MappingToken>
 mmap_sink make_mmap_sink(const MappingToken& token, mmap_sink::size_type offset,

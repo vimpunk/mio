@@ -33,19 +33,17 @@ int main()
     {
         // Map the region of the file to which buffer was written.
         mio::mmap_source file_view = mio::make_mmap_source(
-            path, 0, mio::map_entire_file, error);
+                path, 0, mio::map_entire_file, error);
         if(error) { return handle_error(error); }
 
         assert(file_view.is_open());
         assert(file_view.size() == buffer.size());
 
         // Then verify that mmap's bytes correspond to that of buffer.
-        for(auto i = 0; i < buffer.size(); ++i)
-        {
-            if(file_view[i] != buffer[i])
-            {
+        for(auto i = 0; i < buffer.size(); ++i) {
+            if(file_view[i] != buffer[i]) {
                 std::printf("%ith byte mismatch: expected(%i) <> actual(%i)",
-                    i, buffer[i], file_view[i]);
+                        i, buffer[i], file_view[i]);
                 assert(0);
             }
         }
@@ -58,12 +56,10 @@ int main()
         assert(shared_file_view.size() == buffer.size());
 
         // Then verify that mmap's bytes correspond to that of buffer.
-        for(auto i = 0; i < buffer.size(); ++i)
-        {
-            if(shared_file_view[i] != buffer[i])
-            {
+        for(auto i = 0; i < buffer.size(); ++i) {
+            if(shared_file_view[i] != buffer[i]) {
                 std::printf("%ith byte mismatch: expected(%i) <> actual(%i)",
-                    i, buffer[i], shared_file_view[i]);
+                        i, buffer[i], shared_file_view[i]);
                 assert(0);
             }
         }
