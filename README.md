@@ -16,7 +16,9 @@ Albeit a minor nitpick, Boost.Iostreams implements memory mapped file IO with a 
 In mio, there are two classes to cover the two use-cases: one that is move-only (basically a zero-cost abstraction over the system specific mmapping functions), and the other that acts just like its Boost.Iostreams counterpart, with shared semantics.
 
 ### How to create a mapping
-There are three ways to do that:
+NOTE: the file must exist before creating a mapping.
+
+There are three ways to map a file into memory:
 
 - Using the constructor, which throws on failure:
 ```c++
@@ -55,12 +57,14 @@ int main()
 However, mio does not check whether the provided file descriptor has the same access permissions as the desired mapping, so the mapping may fail. Such errors are reported via the `std::error_code` out parameter that is passed to the mapping function.
 
 ### Example
+
 ```c++
 #include <mio/mmap.hpp>
 #include <system_error> // for std::error_code
 #include <cstdio> // for std::printf
 #include <cassert>
 #include <algorithm>
+#include <fstream>
 
 int handle_error(const std::error_code& error)
 {
@@ -69,17 +73,32 @@ int handle_error(const std::error_code& error)
     return error.value();
 }
 
+void allocate_file(const std::string& path, const int size)
+{
+    std::ofstream file(path);
+    std::string s(size, '0');
+    file << s;
+}
+
 int main()
 {
+    const auto path = "file.txt";
+
+    // NOTE: mio does *not* create the file for you if it doesn't exist! You
+    // must ensure that the file exist before establishing a mapping. It must
+    // also be at least 43 bytes long for the below indexing to work. So for
+    // illustrative purposes the file is created now.
+    allocate_file(path, 155);
+
     // Read-write memory map the whole file by using `map_entire_file` where the
     // length of the mapping is otherwise expected, with the factory method.
     std::error_code error;
     mio::mmap_sink rw_mmap = mio::make_mmap_sink(
-            "file.txt", 0, mio::map_entire_file, error);
+            path, 0, mio::map_entire_file, error);
     if (error) { return handle_error(error); }
 
     // You can use any iterator based function.
-    std::fill(rw_mmap.begin(), rw_mmap.end(), 0);
+    std::fill(rw_mmap.begin(), rw_mmap.end(), 'a');
 
     // Or manually iterate through the mapped region just as if it were any other 
     // container, and change each byte's value (since this is a read-write mapping).
@@ -103,13 +122,12 @@ int main()
 
     // Now create the same mapping, but in read-only mode.
     mio::mmap_source ro_mmap = mio::make_mmap_source(
-            "file.txt", 0, mio::map_entire_file, error);
+            path, 0, mio::map_entire_file, error);
     if (error) { return handle_error(error); }
 
     const int the_answer_to_everything = ro_mmap[answer_index];
     assert(the_answer_to_everything == 42);
 }
-```
 
 `mio::basic_mmap` is move-only, but if multiple copies to the same mapping are needed, use `mio::basic_shared_mmap` which has `std::shared_ptr` semantics and has the same interface as `mio::basic_mmap`.
 ```c++

@@ -3,6 +3,7 @@
 #include <cstdio> // for std::printf
 #include <cassert>
 #include <algorithm>
+#include <fstream>
 
 int handle_error(const std::error_code& error)
 {
@@ -11,17 +12,32 @@ int handle_error(const std::error_code& error)
     return error.value();
 }
 
+void allocate_file(const std::string& path, const int size)
+{
+    std::ofstream file(path);
+    std::string s(size, '0');
+    file << s;
+}
+
 int main()
 {
+    const auto path = "file.txt";
+
+    // NOTE: mio does *not* create the file for you if it doesn't exist! You
+    // must ensure that the file exist before establishing a mapping. It must
+    // also be at least 43 bytes long for the below indexing to work. So for
+    // illustrative purposes the file is created now.
+    allocate_file(path, 155);
+
     // Read-write memory map the whole file by using `map_entire_file` where the
     // length of the mapping is otherwise expected, with the factory method.
     std::error_code error;
     mio::mmap_sink rw_mmap = mio::make_mmap_sink(
-            "file.txt", 0, mio::map_entire_file, error);
+            path, 0, mio::map_entire_file, error);
     if (error) { return handle_error(error); }
 
     // You can use any iterator based function.
-    std::fill(rw_mmap.begin(), rw_mmap.end(), 0);
+    std::fill(rw_mmap.begin(), rw_mmap.end(), 'a');
 
     // Or manually iterate through the mapped region just as if it were any other 
     // container, and change each byte's value (since this is a read-write mapping).
@@ -45,7 +61,7 @@ int main()
 
     // Now create the same mapping, but in read-only mode.
     mio::mmap_source ro_mmap = mio::make_mmap_source(
-            "file.txt", 0, mio::map_entire_file, error);
+            path, 0, mio::map_entire_file, error);
     if (error) { return handle_error(error); }
 
     const int the_answer_to_everything = ro_mmap[answer_index];
