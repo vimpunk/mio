@@ -24,9 +24,9 @@ int main()
     const auto path = "file.txt";
 
     // NOTE: mio does *not* create the file for you if it doesn't exist! You
-    // must ensure that the file exist before establishing a mapping. It must
-    // also be at least 43 bytes long for the below indexing to work. So for
-    // illustrative purposes the file is created now.
+    // must ensure that the file exists before establishing a mapping. It
+    // must also be non-empty. So for illustrative purposes the file is
+    // created now.
     allocate_file(path, 155);
 
     // Read-write memory map the whole file by using `map_entire_file` where the
