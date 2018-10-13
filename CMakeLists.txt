@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 
 #
-# Here we check whether frozen is being configured in isolation or as a component
+# Here we check whether mio is being configured in isolation or as a component
 # of a larger proeject. To do so, we query whether the `PROJECT_NAME` CMake
 # variable has been defined. In the case it has, we can conclude mio is a
 # subproject.
@@ -31,7 +31,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # the CTest module
 #
 CMAKE_DEPENDENT_OPTION(mio.tests
-  "Build the frozen tests and integrate with ctest"
+  "Build the mio tests and integrate with ctest"
   ${BUILD_TESTING} "NOT subproject" OFF)
 
 #
