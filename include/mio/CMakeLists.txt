@@ -1,6 +1,6 @@
 #
 # While not strictly necessary to specify header files as target sources,
-# doing so populates these files  in the source listing when CMake is used
+# doing so populates these files in the source listing when CMake is used
 # to generate XCode and Visual Studios projects
 #
 target_sources(mio INTERFACE
