@@ -208,7 +208,7 @@ Mio's testing is also configured to operate as a client to the [CDash](https://w
 
 ### Installation
 
-Mio provides build system provides an installation target and support for downstream consumption via CMake's `find_package` intrinsic function.
+Mio build system provides an installation target and support for downstream consumption via CMake's `find_package` intrinsic function.
 CMake allows installation to an arbitrary location, which may be specified by defining `CMAKE_INSTALL_PREFIX` at configure time.
 In the absense of a user specification, CMake will install mio to conventional location based on the system operating system.
 
