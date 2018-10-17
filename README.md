@@ -259,7 +259,7 @@ find_package( mio REQUIRED )
 target_link_libraries( MyTarget PUBLIC mio::mio )
 ```
 
-If mio was installed to a non-conventional location, it may be necessary to specify the installation root directory via either
+If mio was installed to a non-conventional location, it may be necessary for downstream projects to specify the mio installation root directory via either
 
 + the `CMAKE_PREFIX_PATH` configuration option,
 + the `CMAKE_PREFIX_PATH` environment variable, or
