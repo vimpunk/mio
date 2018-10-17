@@ -21,7 +21,7 @@
 #ifndef MIO_SHARED_MMAP_HEADER
 #define MIO_SHARED_MMAP_HEADER
 
-#include "mmap.hpp"
+#include "mio/mmap.hpp"
 
 #include <system_error> // std::error_code
 #include <memory> // std::shared_ptr

@@ -21,7 +21,7 @@
 #ifndef MIO_BASIC_MMAP_HEADER
 #define MIO_BASIC_MMAP_HEADER
 
-#include "../page.hpp"
+#include "mio/page.hpp"
 
 #include <iterator>
 #include <string>
@@ -159,6 +159,6 @@ bool operator>=(const basic_mmap<ByteT>& a, const basic_mmap<ByteT>& b);
 } // namespace detail
 } // namespace mio
 
-#include "basic_mmap.ipp"
+#include "mio/detail/basic_mmap.ipp"
 
 #endif // MIO_BASIC_MMAP_HEADER
