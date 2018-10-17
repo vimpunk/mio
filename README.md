@@ -157,11 +157,13 @@ using mmap_sink = mio::basic_mmap_sink<std::byte>;
 Though generally not needed, since mio maps users requested offsets to page boundaries, you can query the underlying system's page allocation granularity by invoking `mio::page_size()`, which is located in `mio/page.hpp`.
 
 ## CMake
-As a header-only library, mio has no compiled components. Nevertheless, a CMake build system is provided to allow easy testing, installation, and subproject composition on many platforms and operating systems.
+As a header-only library, mio has no compiled components. Nevertheless, a [CMake](https://cmake.org/overview/) build system is provided to allow easy testing, installation, and subproject composition on many platforms and operating systems.
 
 ### Testing
 Mio is distributed with a small suite of tests and examples.
 When mio is configured as the highest level CMake project, this suite of executables is built by default.
+Mio's test executables are integrated with the CMake test driver program, [CTest](https://cmake.org/cmake/help/latest/manual/ctest.1.html).
+
 CMake supports a number of backends for compilation and linking.
 
 To use a static configuration build tool, such as GNU Make or Ninja:
@@ -171,14 +173,14 @@ cd <mio source directory>
 mkdir build
 cd build
 
-# Configure the build...
+# Configure the build
 cmake -D CMAKE_BUILD_TYPE=<Debug | Release> \
       -G <"Unix Makefiles" | "Ninja"> ..
 
-# build the tests...
+# build the tests
 < make | ninja | cmake --build . >
 
-# run the tests...
+# run the tests
 < make test | ninja test | cmake --build . --target test | ctest >
 ```
 
@@ -189,13 +191,13 @@ cd <mio source directory>
 mkdir build
 cd build
 
-# Configure the build...
+# Configure the build
 cmake -G <"Visual Studio 14 2015 Win64" | "Xcode"> ..
 
-# build the tests...
+# build the tests
 cmake --build . --config <Debug | Release>
 
-# run the tests via 
+# run the tests via ctest...
 ctest --build-config <Debug | Release>
 
 # ... or via CMake build tool mode...
@@ -208,7 +210,7 @@ Mio's testing is also configured to operate as a client to the [CDash](https://w
 
 ### Installation
 
-Mio's build system provides an installation target and support for downstream consumption via CMake's `find_package` intrinsic function.
+Mio's build system provides an installation target and support for downstream consumption via CMake's [`find_package`](https://cmake.org/cmake/help/v3.0/command/find_package.html) intrinsic function.
 CMake allows installation to an arbitrary location, which may be specified by defining `CMAKE_INSTALL_PREFIX` at configure time.
 In the absense of a user specification, CMake will install mio to conventional location based on the platform operating system.
 
@@ -219,14 +221,14 @@ cd <mio source directory>
 mkdir build
 cd build
 
-# Configure the build...
+# Configure the build
 cmake [-D CMAKE_INSTALL_PREFIX="path/to/installation"] \
       [-D BUILD_TESTING=False]                         \
       -D CMAKE_BUILD_TYPE=Release                      \
       -G <"Unix Makefiles" | "Ninja"> ..
 
-# build and install mio
-[sudo] < make install | ninja install | cmake --build . --target install>
+# install mio
+<make install | ninja install | cmake --build . --target install>
 ```
 
 To use a dynamic configuration build tool, such as Visual Studio or Xcode:
@@ -236,18 +238,19 @@ cd <mio source directory>
 mkdir build
 cd build
 
-# Configure the build...
+# Configure the project
 cmake [-D CMAKE_INSTALL_PREFIX="path/to/installation"] \
       [-D BUILD_TESTING=False]                         \
       -G <"Visual Studio 14 2015 Win64" | "Xcode"> ..
 
-# build the tests...
+# install mio
 cmake --build . --config Release --target install
 ```
 
+Note that the last command of the installation sequence may require administrator privileges (e.g. `sudo`) if the installation root directory lies outside your home directory.
 This installation
 + copies the mio header files to the `include/mio` subdirectory of the installation root
-+ generates and copies several CMake configuration files (`mioConfig.cmake`, `mioConfig-Release.cmake`, and `mioConfigVersion.cmake`) to the `share/cmake/mio` subdirectory root.
++ generates and copies several CMake configuration files to the `share/cmake/mio` subdirectory of the installation root
 
 This latter step allows downstream CMake projects to consume mio via `find_package`, e.g.
 
@@ -257,12 +260,14 @@ target_link_libraries( MyTarget PUBLIC mio::mio )
 ```
 
 If mio was installed to a non-conventional location, it may be necessary to specify the installation root directory via either
+
 + the `CMAKE_PREFIX_PATH` configuration option,
 + the `CMAKE_PREFIX_PATH` environment variable, or
 + `mio_DIR` environment variable.
+
 Please see the [Kitware documentation](https://cmake.org/cmake/help/v3.0/command/find_package.html) for more information.
 
-In addition, mio supports packaged relocatable installations via [CPack](https://cmake.org/cmake/help/latest/manual/cpack.1.html.
+In addition, mio supports packaged relocatable installations via [CPack](https://cmake.org/cmake/help/latest/manual/cpack.1.html).
 Following configuration, from the build directory, invoke cpack as follows to generate a packaged installation:
 
 ```sh
