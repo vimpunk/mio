@@ -157,11 +157,11 @@ using mmap_sink = mio::basic_mmap_sink<std::byte>;
 Though generally not needed, since mio maps users requested offsets to page boundaries, you can query the underlying system's page allocation granularity by invoking `mio::page_size()`, which is located in `mio/page.hpp`.
 
 ## CMake
-A `CMakeLists.txt` file is provided to allow easy testing, installation, and subproject composition on many platforms and operating systems.
+As a header-only library, mio has no compiled components. Nevertheless, a CMake build system is provided to allow easy testing, installation, and subproject composition on many platforms and operating systems.
 
 ### Testing
-Mio provides a small test suite and example.
-When mio is configured as the highest level CMake project, these tests are built by default.
+Mio is distributed with a small suite of tests and examples.
+When mio is configured as the highest level CMake project, this suite of executables is built by default.
 CMake supports a number of backends for compilation and linking.
 
 To use a static configuration build tool, such as GNU Make or Ninja:
@@ -202,15 +202,15 @@ ctest --build-config <Debug | Release>
 cmake --build . --config <Debug | Release> --target test
 ```
 
-Of course the build and test steps can also be executed via the `all` and `test` targets, respectively, from within the IDE after opening the project file generated during the configuration step.
+Of course the **build** and **test** steps can also be executed via the **all** and **test** targets, respectively, from within the IDE after opening the project file generated during the configuration step.
 
 Mio's testing is also configured to operate as a client to the [CDash](https://www.cdash.org/) software quality dashboard application. Please see the [Kitware documentation](https://cmake.org/cmake/help/latest/manual/ctest.1.html#dashboard-client) for more information on this mode of operation.
 
 ### Installation
 
-Mio build system provides an installation target and support for downstream consumption via CMake's `find_package` intrinsic function.
+Mio's build system provides an installation target and support for downstream consumption via CMake's `find_package` intrinsic function.
 CMake allows installation to an arbitrary location, which may be specified by defining `CMAKE_INSTALL_PREFIX` at configure time.
-In the absense of a user specification, CMake will install mio to conventional location based on the system operating system.
+In the absense of a user specification, CMake will install mio to conventional location based on the platform operating system.
 
 To use a static configuration build tool, such as GNU Make or Ninja:
 
@@ -221,6 +221,7 @@ cd build
 
 # Configure the build...
 cmake [-D CMAKE_INSTALL_PREFIX="path/to/installation"] \
+      [-D BUILD_TESTING=False]                         \
       -D CMAKE_BUILD_TYPE=Release                      \
       -G <"Unix Makefiles" | "Ninja"> ..
 
@@ -237,6 +238,7 @@ cd build
 
 # Configure the build...
 cmake [-D CMAKE_INSTALL_PREFIX="path/to/installation"] \
+      [-D BUILD_TESTING=False]                         \
       -G <"Visual Studio 14 2015 Win64" | "Xcode"> ..
 
 # build the tests...
@@ -260,7 +262,8 @@ If mio was installed to a non-conventional location, it may be necessary to spec
 + `mio_DIR` environment variable.
 Please see the [Kitware documentation](https://cmake.org/cmake/help/v3.0/command/find_package.html) for more information.
 
-In addition, mio supports packaged relocatable installations via [CPack](https://cmake.org/cmake/help/latest/manual/cpack.1.html. Following configuration, from the build directory, invoke cpack as follows to generate a packaged installation:
+In addition, mio supports packaged relocatable installations via [CPack](https://cmake.org/cmake/help/latest/manual/cpack.1.html.
+Following configuration, from the build directory, invoke cpack as follows to generate a packaged installation:
 
 ```sh
 cpack -G <generator name> -C Release
@@ -280,10 +283,11 @@ git submodule add -b master https://github.com/mandreyel/mio.git
 
 # via git subtree
 cd <my project's root directory>
-git subtree add --prefix <relative path to dependencies directory>/mio https://github.com/mandreyel/mio.git master --squash
+git subtree add --prefix <path/to/dependencies>/mio       \
+    https://github.com/mandreyel/mio.git master --squash
 ```
 
-Given a mio subdirectory in a project, simply add the following lines to your project's to add mio into `MyTarget` include directories.
+Given a mio subdirectory in a project, simply add the following lines to your project's to add mio include directories to your target's include path.
 
 ```cmake
 add_subdirectory( path/to/mio/ )
