@@ -22,7 +22,11 @@ using mmap_source = mio::basic_mmap_source<std::byte>;
 
 int main()
 {
-    const char* path = "test-file";
+    const char _path[] = "test-file";
+    // Make sure mio compiles with non-const char* strings too.
+    const int path_len = sizeof(_path);
+    char* path = new char[path_len];
+    std::copy(_path, _path + path_len, path);
     std::error_code error;
     // Fill buffer, then write it to file.
     std::string buffer(0x4000 - 250, 'M');

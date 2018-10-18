@@ -26,10 +26,21 @@
 namespace mio {
 namespace detail {
 
-template<typename String> struct is_c_str
+template <typename String>
+struct is_c_str
 {
     static constexpr bool value = std::is_same<
-        const char*, typename std::decay<String>::type
+        char*,
+        // TODO: I'm so sorry for this... Can this be made cleaner?
+        typename std::add_pointer<
+            typename std::remove_cv<
+                typename std::remove_pointer<
+                    typename std::decay<
+                        String
+                    >::type
+                >::type
+            >::type
+        >::type
     >::value;
 };
 
