@@ -128,6 +128,7 @@ int main()
     const int the_answer_to_everything = ro_mmap[answer_index];
     assert(the_answer_to_everything == 42);
 }
+```
 
 `mio::basic_mmap` is move-only, but if multiple copies to the same mapping are needed, use `mio::basic_shared_mmap` which has `std::shared_ptr` semantics and has the same interface as `mio::basic_mmap`.
 ```c++
