@@ -56,6 +56,9 @@ int main()
 ```
 However, mio does not check whether the provided file descriptor has the same access permissions as the desired mapping, so the mapping may fail. Such errors are reported via the `std::error_code` out parameter that is passed to the mapping function.
 
+**WINDOWS USERS**: This library doesn't support the use of wide character 
+types for functions where character strings are expected (e.g. path parameters).
+
 ### Example
 
 ```c++
@@ -249,6 +252,7 @@ cmake --build . --config Release --target install
 ```
 
 Note that the last command of the installation sequence may require administrator privileges (e.g. `sudo`) if the installation root directory lies outside your home directory.
+
 This installation
 + copies the mio header files to the `include/mio` subdirectory of the installation root
 + generates and copies several CMake configuration files to the `share/cmake/mio` subdirectory of the installation root

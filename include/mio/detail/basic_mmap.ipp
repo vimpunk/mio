@@ -72,7 +72,7 @@ file_handle_type open_file(const String& path,
         return INVALID_HANDLE_VALUE;
     }
 #ifdef _WIN32
-    const auto handle = ::CreateFile(c_str(path),
+    const auto handle = ::CreateFileA(c_str(path),
         mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
         0,
