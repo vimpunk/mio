@@ -264,7 +264,7 @@ find_package( mio REQUIRED )
 target_link_libraries( MyTarget PUBLIC mio::mio )
 ```
 
-**WINDOWS USERS**: The `mio::mio` target `#define`s `WIN32_LEAN_AND_MEAN` and `NOMINMAX`. The former trims down the surface area of the Win API to a minimum and the latter disables Windows' `min` and `max` definitions, so they don't intefere with `std::min` and `std::max`. Because *mio* is a header only library, these defintions will leak into downstream builds, so if their presence is causing problems with your build then, alternatively, you can use the `mio::mio_full_winapi` target, which adds none of these defintions.
+**WINDOWS USERS**: The `mio::mio` target `#define`s `WIN32_LEAN_AND_MEAN` and `NOMINMAX`. The former ensures the imported surface area of the Win API is minimal, and the latter disables Windows' `min` and `max` macros so they don't intefere with `std::min` and `std::max`. Because *mio* is a header only library, these defintions will leak into downstream CMake builds. If their presence is causing problems with your build then you can use the alternative `mio::mio_full_winapi` target, which adds none of these defintions.
 
 If mio was installed to a non-conventional location, it may be necessary for downstream projects to specify the mio installation root directory via either
 
