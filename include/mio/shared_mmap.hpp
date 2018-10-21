@@ -326,7 +326,7 @@ private:
         }
         else
         {
-            pimpl_->map(token, offset, length, AccessMode, error);
+            pimpl_->map(token, offset, length, error);
         }
     }
 };
