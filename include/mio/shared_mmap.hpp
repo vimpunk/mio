@@ -37,10 +37,11 @@ namespace mio {
  */
 template<
     access_mode AccessMode,
-    typename ByteT
+    typename ByteT,
+    dtor_policy DtorPolicy = dtor_policy::sync
 > class basic_shared_mmap
 {
-    using impl_type = basic_mmap<AccessMode, ByteT>;
+    using impl_type = basic_mmap<AccessMode, ByteT, DtorPolicy>;
     std::shared_ptr<impl_type> pimpl_;
 
 public:
@@ -344,15 +345,15 @@ private:
  * This is the basis for all read-only mmap objects and should be preferred over
  * directly using basic_shared_mmap.
  */
-template<typename ByteT>
-using basic_shared_mmap_source = basic_shared_mmap<access_mode::read, ByteT>;
+template<typename ByteT, dtor_policy DtorPolicy = dtor_policy::sync>
+using basic_shared_mmap_source = basic_shared_mmap<access_mode::read, ByteT, DtorPolicy>;
 
 /**
  * This is the basis for all read-write mmap objects and should be preferred over
  * directly using basic_shared_mmap.
  */
-template<typename ByteT>
-using basic_shared_mmap_sink = basic_shared_mmap<access_mode::write, ByteT>;
+template<typename ByteT, dtor_policy DtorPolicy = dtor_policy::sync>
+using basic_shared_mmap_sink = basic_shared_mmap<access_mode::write, ByteT, DtorPolicy>;
 
 /**
  * These aliases cover the most common use cases, both representing a raw byte stream

@@ -53,8 +53,17 @@ using file_handle_type = int;
 // determine whether `basic_mmap::file_handle` is valid, for example.
 constexpr static file_handle_type invalid_handle = INVALID_HANDLE_VALUE;
 
-template<access_mode AccessMode, typename ByteT>
-struct basic_mmap
+// `basic_mmap`'s constructor syncs changes to disk if it's in write mode, but
+// some user's may prefer the absence of this feature and instead syncing
+// manually. This optional template parameter may be used to change this
+// beharior.
+enum class dtor_policy { sync, no_sync, };
+
+template<
+    access_mode AccessMode,
+    typename ByteT,
+    dtor_policy DtorPolicy = dtor_policy::sync
+> struct basic_mmap
 {
     using value_type = ByteT;
     using size_type = int64_t;
@@ -70,7 +79,8 @@ struct basic_mmap
     using iterator_category = std::random_access_iterator_tag;
     using handle_type = file_handle_type;
 
-    static_assert(sizeof(ByteT) == sizeof(char), "ByteT must be the same size as char.");
+    static_assert(sizeof(ByteT) == sizeof(char),
+            "ByteT must be the same size as char.");
 
 private:
     // Points to the first requested byte, and not to the actual start of the mapping.
@@ -331,50 +341,64 @@ private:
      * if it's `read`, but since the destructor cannot be templated, we need to
      * do SFINAE in a dedicated function, where one syncs and the other is a noop.
      */
-    template<access_mode A = AccessMode,
-            typename = typename std::enable_if<A == access_mode::write>::type>
-    void conditional_sync() { sync(); }
-    template<access_mode A = AccessMode>
-    typename std::enable_if<A == access_mode::read, void>::type conditional_sync() {}
+    template<
+        access_mode A = AccessMode,
+        dtor_policy D = DtorPolicy,
+        typename = typename std::enable_if<
+            A == access_mode::write and D == dtor_policy::sync
+        >::type
+    > void conditional_sync()
+    {
+        // Not much we can do about errors in the destructor.
+        std::error_code ec;
+        sync(ec);
+    }
+
+    template<
+        access_mode A = AccessMode,
+        dtor_policy D = DtorPolicy
+    > typename std::enable_if<
+        A == access_mode::read or D == dtor_policy::no_sync, void
+    >::type conditional_sync() {}
 };
 
-template<access_mode AccessMode, typename ByteT>
-bool operator==(const basic_mmap<AccessMode, ByteT>& a,
-        const basic_mmap<AccessMode, ByteT>& b);
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+bool operator==(const basic_mmap<AccessMode, ByteT, DtorPolicy>& a,
+        const basic_mmap<AccessMode, ByteT, DtorPolicy>& b);
 
-template<access_mode AccessMode, typename ByteT>
-bool operator!=(const basic_mmap<AccessMode, ByteT>& a,
-        const basic_mmap<AccessMode, ByteT>& b);
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+bool operator!=(const basic_mmap<AccessMode, ByteT, DtorPolicy>& a,
+        const basic_mmap<AccessMode, ByteT, DtorPolicy>& b);
 
-template<access_mode AccessMode, typename ByteT>
-bool operator<(const basic_mmap<AccessMode, ByteT>& a,
-        const basic_mmap<AccessMode, ByteT>& b);
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+bool operator<(const basic_mmap<AccessMode, ByteT, DtorPolicy>& a,
+        const basic_mmap<AccessMode, ByteT, DtorPolicy>& b);
 
-template<access_mode AccessMode, typename ByteT>
-bool operator<=(const basic_mmap<AccessMode, ByteT>& a,
-        const basic_mmap<AccessMode, ByteT>& b);
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+bool operator<=(const basic_mmap<AccessMode, ByteT, DtorPolicy>& a,
+        const basic_mmap<AccessMode, ByteT, DtorPolicy>& b);
 
-template<access_mode AccessMode, typename ByteT>
-bool operator>(const basic_mmap<AccessMode, ByteT>& a,
-        const basic_mmap<AccessMode, ByteT>& b);
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+bool operator>(const basic_mmap<AccessMode, ByteT, DtorPolicy>& a,
+        const basic_mmap<AccessMode, ByteT, DtorPolicy>& b);
 
-template<access_mode AccessMode, typename ByteT>
-bool operator>=(const basic_mmap<AccessMode, ByteT>& a,
-        const basic_mmap<AccessMode, ByteT>& b);
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+bool operator>=(const basic_mmap<AccessMode, ByteT, DtorPolicy>& a,
+        const basic_mmap<AccessMode, ByteT, DtorPolicy>& b);
 
 /**
  * This is the basis for all read-only mmap objects and should be preferred over
  * directly using `basic_mmap`.
  */
-template<typename ByteT>
-using basic_mmap_source = basic_mmap<access_mode::read, ByteT>;
+template<typename ByteT, dtor_policy DtorPolicy = dtor_policy::sync>
+using basic_mmap_source = basic_mmap<access_mode::read, ByteT, DtorPolicy>;
 
 /**
  * This is the basis for all read-write mmap objects and should be preferred over
  * directly using `basic_mmap`.
  */
-template<typename ByteT>
-using basic_mmap_sink = basic_mmap<access_mode::write, ByteT>;
+template<typename ByteT, dtor_policy DtorPolicy = dtor_policy::sync>
+using basic_mmap_sink = basic_mmap<access_mode::write, ByteT, DtorPolicy>;
 
 /**
  * These aliases cover the most common use cases, both representing a raw byte stream

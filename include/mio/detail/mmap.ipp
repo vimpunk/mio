@@ -185,15 +185,15 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
 
 // -- basic_mmap --
 
-template<access_mode AccessMode, typename ByteT>
-basic_mmap<AccessMode, ByteT>::~basic_mmap()
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+basic_mmap<AccessMode, ByteT, DtorPolicy>::~basic_mmap()
 {
     conditional_sync();
     unmap();
 }
 
-template<access_mode AccessMode, typename ByteT>
-basic_mmap<AccessMode, ByteT>::basic_mmap(basic_mmap&& other)
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+basic_mmap<AccessMode, ByteT, DtorPolicy>::basic_mmap(basic_mmap&& other)
     : data_(std::move(other.data_))
     , length_(std::move(other.length_))
     , mapped_length_(std::move(other.mapped_length_))
@@ -211,9 +211,9 @@ basic_mmap<AccessMode, ByteT>::basic_mmap(basic_mmap&& other)
 #endif
 }
 
-template<access_mode AccessMode, typename ByteT>
-basic_mmap<AccessMode, ByteT>&
-basic_mmap<AccessMode, ByteT>::operator=(basic_mmap&& other)
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+basic_mmap<AccessMode, ByteT, DtorPolicy>&
+basic_mmap<AccessMode, ByteT, DtorPolicy>::operator=(basic_mmap&& other)
 {
     if(this != &other)
     {
@@ -242,9 +242,9 @@ basic_mmap<AccessMode, ByteT>::operator=(basic_mmap&& other)
     return *this;
 }
 
-template<access_mode AccessMode, typename ByteT>
-typename basic_mmap<AccessMode, ByteT>::handle_type
-basic_mmap<AccessMode, ByteT>::mapping_handle() const noexcept
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+typename basic_mmap<AccessMode, ByteT, DtorPolicy>::handle_type
+basic_mmap<AccessMode, ByteT, DtorPolicy>::mapping_handle() const noexcept
 {
 #ifdef _WIN32
     return file_mapping_handle_;
@@ -253,9 +253,9 @@ basic_mmap<AccessMode, ByteT>::mapping_handle() const noexcept
 #endif
 }
 
-template<access_mode AccessMode, typename ByteT>
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
 template<typename String>
-void basic_mmap<AccessMode, ByteT>::map(const String& path, const size_type offset,
+void basic_mmap<AccessMode, ByteT, DtorPolicy>::map(const String& path, const size_type offset,
         const size_type length, std::error_code& error)
 {
     error.clear();
@@ -278,8 +278,8 @@ void basic_mmap<AccessMode, ByteT>::map(const String& path, const size_type offs
     }
 }
 
-template<access_mode AccessMode, typename ByteT>
-void basic_mmap<AccessMode, ByteT>::map(const handle_type handle,
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+void basic_mmap<AccessMode, ByteT, DtorPolicy>::map(const handle_type handle,
         const size_type offset, const size_type length, std::error_code& error)
 {
     error.clear();
@@ -323,9 +323,9 @@ void basic_mmap<AccessMode, ByteT>::map(const handle_type handle,
     }
 }
 
-template<access_mode AccessMode, typename ByteT>
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
 template<access_mode, typename /*SFINAE*/>
-void basic_mmap<AccessMode, ByteT>::sync(std::error_code& error)
+void basic_mmap<AccessMode, ByteT, DtorPolicy>::sync(std::error_code& error)
 {
     error.clear();
     if(!is_open())
@@ -355,8 +355,8 @@ void basic_mmap<AccessMode, ByteT>::sync(std::error_code& error)
 #endif
 }
 
-template<access_mode AccessMode, typename ByteT>
-void basic_mmap<AccessMode, ByteT>::unmap()
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+void basic_mmap<AccessMode, ByteT, DtorPolicy>::unmap()
 {
     if(!is_open()) { return; }
     // TODO do we care about errors here?
@@ -391,8 +391,8 @@ void basic_mmap<AccessMode, ByteT>::unmap()
 #endif
 }
 
-template<access_mode AccessMode, typename ByteT>
-bool basic_mmap<AccessMode, ByteT>::is_mapped() const noexcept
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+bool basic_mmap<AccessMode, ByteT, DtorPolicy>::is_mapped() const noexcept
 {
 #ifdef _WIN32
     return file_mapping_handle_ != invalid_handle;
@@ -401,8 +401,8 @@ bool basic_mmap<AccessMode, ByteT>::is_mapped() const noexcept
 #endif
 }
 
-template<access_mode AccessMode, typename ByteT>
-void basic_mmap<AccessMode, ByteT>::swap(basic_mmap& other)
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+void basic_mmap<AccessMode, ByteT, DtorPolicy>::swap(basic_mmap& other)
 {
     if(this != &other)
     {
@@ -418,47 +418,47 @@ void basic_mmap<AccessMode, ByteT>::swap(basic_mmap& other)
     }
 }
 
-template<access_mode AccessMode, typename ByteT>
-bool operator==(const basic_mmap<AccessMode, ByteT>& a,
-        const basic_mmap<AccessMode, ByteT>& b)
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+bool operator==(const basic_mmap<AccessMode, ByteT, DtorPolicy>& a,
+        const basic_mmap<AccessMode, ByteT, DtorPolicy>& b)
 {
     return a.data() == b.data()
         && a.size() == b.size();
 }
 
-template<access_mode AccessMode, typename ByteT>
-bool operator!=(const basic_mmap<AccessMode, ByteT>& a,
-        const basic_mmap<AccessMode, ByteT>& b)
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+bool operator!=(const basic_mmap<AccessMode, ByteT, DtorPolicy>& a,
+        const basic_mmap<AccessMode, ByteT, DtorPolicy>& b)
 {
     return !(a == b);
 }
 
-template<access_mode AccessMode, typename ByteT>
-bool operator<(const basic_mmap<AccessMode, ByteT>& a,
-        const basic_mmap<AccessMode, ByteT>& b)
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+bool operator<(const basic_mmap<AccessMode, ByteT, DtorPolicy>& a,
+        const basic_mmap<AccessMode, ByteT, DtorPolicy>& b)
 {
     if(a.data() == b.data()) { return a.size() < b.size(); }
     return a.data() < b.data();
 }
 
-template<access_mode AccessMode, typename ByteT>
-bool operator<=(const basic_mmap<AccessMode, ByteT>& a,
-        const basic_mmap<AccessMode, ByteT>& b)
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+bool operator<=(const basic_mmap<AccessMode, ByteT, DtorPolicy>& a,
+        const basic_mmap<AccessMode, ByteT, DtorPolicy>& b)
 {
     return !(a > b);
 }
 
-template<access_mode AccessMode, typename ByteT>
-bool operator>(const basic_mmap<AccessMode, ByteT>& a,
-        const basic_mmap<AccessMode, ByteT>& b)
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+bool operator>(const basic_mmap<AccessMode, ByteT, DtorPolicy>& a,
+        const basic_mmap<AccessMode, ByteT, DtorPolicy>& b)
 {
     if(a.data() == b.data()) { return a.size() > b.size(); }
     return a.data() > b.data();
 }
 
-template<access_mode AccessMode, typename ByteT>
-bool operator>=(const basic_mmap<AccessMode, ByteT>& a,
-        const basic_mmap<AccessMode, ByteT>& b)
+template<access_mode AccessMode, typename ByteT, dtor_policy DtorPolicy>
+bool operator>=(const basic_mmap<AccessMode, ByteT, DtorPolicy>& a,
+        const basic_mmap<AccessMode, ByteT, DtorPolicy>& b)
 {
     return !(a < b);
 }
