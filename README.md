@@ -113,8 +113,8 @@ int main()
     const int answer_index = rw_mmap.size() / 2;
     rw_mmap[answer_index] = 42;
 
-    // Don't forget to flush changes to disk, which is NOT done by the destructor for
-    // more explicit control of this potentially expensive operation.
+    // We can explicitly flush changes to disk, but this is already done by the
+    // destructor.
     rw_mmap.sync(error);
     if (error) { return handle_error(error); }
 
