@@ -21,12 +21,11 @@
 #ifndef MIO_BASIC_MMAP_IMPL
 #define MIO_BASIC_MMAP_IMPL
 
-#include "mio/detail/basic_mmap.hpp"
-#include "mio/detail/string_util.hpp"
+#include "mio/mmap.hpp"
 #include "mio/page.hpp"
+#include "mio/detail/string_util.hpp"
 
 #include <algorithm>
-#include <cstdint>
 
 #ifndef _WIN32
 # include <unistd.h>
@@ -39,17 +38,23 @@ namespace mio {
 namespace detail {
 
 #ifdef _WIN32
+/** Returns the 4 upper bytes of a 8-byte integer. */
 inline DWORD int64_high(int64_t n) noexcept
 {
     return n >> 32;
 }
 
+/** Returns the 4 lower bytes of a 8-byte integer. */
 inline DWORD int64_low(int64_t n) noexcept
 {
     return n & 0xffffffff;
 }
 #endif
 
+/**
+ * Returns the last platform specific system error (errno on POSIX and
+ * GetLastError on Win) as a `std::error_code`.
+ */
 inline std::error_code last_error() noexcept
 {
     std::error_code error;
@@ -63,29 +68,29 @@ inline std::error_code last_error() noexcept
 
 template<typename String>
 file_handle_type open_file(const String& path,
-    const access_mode mode, std::error_code& error)
+        const access_mode mode, std::error_code& error)
 {
     error.clear();
     if(detail::empty(path))
     {
         error = std::make_error_code(std::errc::invalid_argument);
-        return INVALID_HANDLE_VALUE;
+        return invalid_handle;
     }
 #ifdef _WIN32
     const auto handle = ::CreateFileA(c_str(path),
-        mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        0,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
-        0);
-#else
+            mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            0,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            0);
+#else // POSIX
     const auto handle = ::open(c_str(path),
-        mode == access_mode::read ? O_RDONLY : O_RDWR);
+            mode == access_mode::read ? O_RDONLY : O_RDWR);
 #endif
-    if(handle == INVALID_HANDLE_VALUE)
+    if(handle == invalid_handle)
     {
-        error = last_error();
+        error = detail::last_error();
     }
     return handle;
 }
@@ -97,15 +102,15 @@ inline int64_t query_file_size(file_handle_type handle, std::error_code& error)
     LARGE_INTEGER file_size;
     if(::GetFileSizeEx(handle, &file_size) == 0)
     {
-        error = last_error();
+        error = detail::last_error();
         return 0;
     }
 	return static_cast<int64_t>(file_size.QuadPart);
-#else
+#else // POSIX
     struct stat sbuf;
     if(::fstat(handle, &sbuf) == -1)
     {
-        error = last_error();
+        error = detail::last_error();
         return 0;
     }
     return sbuf.st_size;
@@ -130,39 +135,39 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
 #ifdef _WIN32
     const int64_t max_file_size = offset + length;
     const auto file_mapping_handle = ::CreateFileMapping(
-        file_handle,
-        0,
-        mode == access_mode::read ? PAGE_READONLY : PAGE_READWRITE,
-        int64_high(max_file_size),
-        int64_low(max_file_size),
-        0);
-    if(file_mapping_handle == INVALID_HANDLE_VALUE)
+            file_handle,
+            0,
+            mode == access_mode::read ? PAGE_READONLY : PAGE_READWRITE,
+            int64_high(max_file_size),
+            int64_low(max_file_size),
+            0);
+    if(file_mapping_handle == invalid_handle)
     {
-        error = last_error();
+        error = detail::last_error();
         return {};
     }
     char* mapping_start = static_cast<char*>(::MapViewOfFile(
-        file_mapping_handle,
-        mode == access_mode::read ? FILE_MAP_READ : FILE_MAP_WRITE,
-        int64_high(aligned_offset),
-        int64_low(aligned_offset),
-        length_to_map));
+            file_mapping_handle,
+            mode == access_mode::read ? FILE_MAP_READ : FILE_MAP_WRITE,
+            int64_high(aligned_offset),
+            int64_low(aligned_offset),
+            length_to_map));
     if(mapping_start == nullptr)
     {
-        error = last_error();
+        error = detail::last_error();
         return {};
     }
-#else
+#else // POSIX
     char* mapping_start = static_cast<char*>(::mmap(
-        0, // Don't give hint as to where to map.
-        length_to_map,
-        mode == access_mode::read ? PROT_READ : PROT_WRITE,
-        MAP_SHARED,
-        file_handle,
-        aligned_offset));
+            0, // Don't give hint as to where to map.
+            length_to_map,
+            mode == access_mode::read ? PROT_READ : PROT_WRITE,
+            MAP_SHARED,
+            file_handle,
+            aligned_offset));
     if(mapping_start == MAP_FAILED)
     {
-        error = last_error();
+        error = detail::last_error();
         return {};
     }
 #endif
@@ -176,16 +181,18 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
     return ctx;
 }
 
+} // namespace detail
+
 // -- basic_mmap --
 
-template<typename ByteT>
-basic_mmap<ByteT>::~basic_mmap()
+template<access_mode AccessMode, typename ByteT>
+basic_mmap<AccessMode, ByteT>::~basic_mmap()
 {
     unmap();
 }
 
-template<typename ByteT>
-basic_mmap<ByteT>::basic_mmap(basic_mmap<ByteT>&& other)
+template<access_mode AccessMode, typename ByteT>
+basic_mmap<AccessMode, ByteT>::basic_mmap(basic_mmap&& other)
     : data_(std::move(other.data_))
     , length_(std::move(other.length_))
     , mapped_length_(std::move(other.mapped_length_))
@@ -197,14 +204,15 @@ basic_mmap<ByteT>::basic_mmap(basic_mmap<ByteT>&& other)
 {
     other.data_ = nullptr;
     other.length_ = other.mapped_length_ = 0;
-    other.file_handle_ = INVALID_HANDLE_VALUE;
+    other.file_handle_ = invalid_handle;
 #ifdef _WIN32
-    other.file_mapping_handle_ = INVALID_HANDLE_VALUE;
+    other.file_mapping_handle_ = invalid_handle;
 #endif
 }
 
-template<typename ByteT>
-basic_mmap<ByteT>& basic_mmap<ByteT>::operator=(basic_mmap<ByteT>&& other)
+template<access_mode AccessMode, typename ByteT>
+basic_mmap<AccessMode, ByteT>&
+basic_mmap<AccessMode, ByteT>::operator=(basic_mmap&& other)
 {
     if(this != &other)
     {
@@ -219,21 +227,23 @@ basic_mmap<ByteT>& basic_mmap<ByteT>::operator=(basic_mmap<ByteT>&& other)
 #endif
         is_handle_internal_ = std::move(other.is_handle_internal_);
 
-        // The moved from basic_mmap's fields need to be reset, because otherwise other's
-        // destructor will unmap the same mapping that was just moved into this.
+        // The moved from basic_mmap's fields need to be reset, because
+        // otherwise other's destructor will unmap the same mapping that was
+        // just moved into this.
         other.data_ = nullptr;
         other.length_ = other.mapped_length_ = 0;
-        other.file_handle_ = INVALID_HANDLE_VALUE;
+        other.file_handle_ = invalid_handle;
 #ifdef _WIN32
-        other.file_mapping_handle_ = INVALID_HANDLE_VALUE;
+        other.file_mapping_handle_ = invalid_handle;
 #endif
         other.is_handle_internal_ = false;
     }
     return *this;
 }
 
-template<typename ByteT>
-typename basic_mmap<ByteT>::handle_type basic_mmap<ByteT>::mapping_handle() const noexcept
+template<access_mode AccessMode, typename ByteT>
+typename basic_mmap<AccessMode, ByteT>::handle_type
+basic_mmap<AccessMode, ByteT>::mapping_handle() const noexcept
 {
 #ifdef _WIN32
     return file_mapping_handle_;
@@ -242,10 +252,10 @@ typename basic_mmap<ByteT>::handle_type basic_mmap<ByteT>::mapping_handle() cons
 #endif
 }
 
-template<typename ByteT>
+template<access_mode AccessMode, typename ByteT>
 template<typename String>
-void basic_mmap<ByteT>::map(String& path, size_type offset,
-    size_type length, access_mode mode, std::error_code& error)
+void basic_mmap<AccessMode, ByteT>::map(const String& path, const size_type offset,
+        const size_type length, std::error_code& error)
 {
     error.clear();
     if(detail::empty(path))
@@ -253,9 +263,13 @@ void basic_mmap<ByteT>::map(String& path, size_type offset,
         error = std::make_error_code(std::errc::invalid_argument);
         return;
     }
-    const auto handle = open_file(path, mode, error);
-    if(error) { return; }
-    map(handle, offset, length, mode, error);
+    const auto handle = detail::open_file(path, AccessMode, error);
+    if(error)
+    {
+        return;
+    }
+
+    map(handle, offset, length, error);
     // This MUST be after the call to map, as that sets this to true.
     if(!error)
     {
@@ -263,31 +277,32 @@ void basic_mmap<ByteT>::map(String& path, size_type offset,
     }
 }
 
-template<typename ByteT>
-void basic_mmap<ByteT>::map(handle_type handle, size_type offset,
-    size_type length, access_mode mode, std::error_code& error)
+template<access_mode AccessMode, typename ByteT>
+void basic_mmap<AccessMode, ByteT>::map(const handle_type handle, const size_type offset,
+        const size_type length, std::error_code& error)
 {
     error.clear();
-    if(handle == INVALID_HANDLE_VALUE)
+    if(handle == invalid_handle)
     {
         error = std::make_error_code(std::errc::bad_file_descriptor);
         return;
     }
 
-    const auto file_size = query_file_size(handle, error);
-    if(error) { return; }
-
-    if(length <= map_entire_file)
+    const auto file_size = detail::query_file_size(handle, error);
+    if(error)
     {
-        length = file_size;
+        return;
     }
-    else if(offset + length > file_size)
+
+    if(offset + length > file_size)
     {
         error = std::make_error_code(std::errc::invalid_argument);
         return;
     }
 
-    const mmap_context ctx = memory_map(handle, offset, length, mode, error);
+    const auto ctx = detail::memory_map(handle, offset,
+            length == map_entire_file ? file_size : length,
+            AccessMode, error);
     if(!error)
     {
         // We must unmap the previous mapping that may have existed prior to this call.
@@ -307,8 +322,9 @@ void basic_mmap<ByteT>::map(handle_type handle, size_type offset,
     }
 }
 
-template<typename ByteT>
-void basic_mmap<ByteT>::sync(std::error_code& error)
+template<access_mode AccessMode, typename ByteT>
+template<access_mode, typename /*SFINAE*/>
+void basic_mmap<AccessMode, ByteT>::sync(std::error_code& error)
 {
     error.clear();
     if(!is_open())
@@ -322,24 +338,24 @@ void basic_mmap<ByteT>::sync(std::error_code& error)
 #ifdef _WIN32
         if(::FlushViewOfFile(get_mapping_start(), mapped_length_) == 0
            || ::FlushFileBuffers(file_handle_) == 0)
-#else
+#else // POSIX
         if(::msync(get_mapping_start(), mapped_length_, MS_SYNC) != 0)
 #endif
         {
-            error = last_error();
+            error = detail::last_error();
             return;
         }
     }
 #ifdef _WIN32
     if(::FlushFileBuffers(file_handle_) == 0)
     {
-        error = last_error();
+        error = detail::last_error();
     }
 #endif
 }
 
-template<typename ByteT>
-void basic_mmap<ByteT>::unmap()
+template<access_mode AccessMode, typename ByteT>
+void basic_mmap<AccessMode, ByteT>::unmap()
 {
     if(!is_open()) { return; }
     // TODO do we care about errors here?
@@ -349,7 +365,7 @@ void basic_mmap<ByteT>::unmap()
         ::UnmapViewOfFile(get_mapping_start());
         ::CloseHandle(file_mapping_handle_);
     }
-#else
+#else // POSIX
     if(data_) { ::munmap(const_cast<pointer>(get_mapping_start()), mapped_length_); }
 #endif
 
@@ -360,7 +376,7 @@ void basic_mmap<ByteT>::unmap()
     {
 #ifdef _WIN32
         ::CloseHandle(file_handle_);
-#else
+#else // POSIX
         ::close(file_handle_);
 #endif
     }
@@ -368,24 +384,24 @@ void basic_mmap<ByteT>::unmap()
     // Reset fields to their default values.
     data_ = nullptr;
     length_ = mapped_length_ = 0;
-    file_handle_ = INVALID_HANDLE_VALUE;
+    file_handle_ = invalid_handle;
 #ifdef _WIN32
-    file_mapping_handle_ = INVALID_HANDLE_VALUE;
+    file_mapping_handle_ = invalid_handle;
 #endif
 }
 
-template<typename ByteT>
-bool basic_mmap<ByteT>::is_mapped() const noexcept
+template<access_mode AccessMode, typename ByteT>
+bool basic_mmap<AccessMode, ByteT>::is_mapped() const noexcept
 {
 #ifdef _WIN32
-    return file_mapping_handle_ != INVALID_HANDLE_VALUE;
-#else
+    return file_mapping_handle_ != invalid_handle;
+#else // POSIX
     return is_open();
 #endif
 }
 
-template<typename ByteT>
-void basic_mmap<ByteT>::swap(basic_mmap<ByteT>& other)
+template<access_mode AccessMode, typename ByteT>
+void basic_mmap<AccessMode, ByteT>::swap(basic_mmap& other)
 {
     if(this != &other)
     {
@@ -401,46 +417,51 @@ void basic_mmap<ByteT>::swap(basic_mmap<ByteT>& other)
     }
 }
 
-template<typename ByteT>
-bool operator==(const basic_mmap<ByteT>& a, const basic_mmap<ByteT>& b)
+template<access_mode AccessMode, typename ByteT>
+bool operator==(const basic_mmap<AccessMode, ByteT>& a,
+        const basic_mmap<AccessMode, ByteT>& b)
 {
     return a.data() == b.data()
         && a.size() == b.size();
 }
 
-template<typename ByteT>
-bool operator!=(const basic_mmap<ByteT>& a, const basic_mmap<ByteT>& b)
+template<access_mode AccessMode, typename ByteT>
+bool operator!=(const basic_mmap<AccessMode, ByteT>& a,
+        const basic_mmap<AccessMode, ByteT>& b)
 {
     return !(a == b);
 }
 
-template<typename ByteT>
-bool operator<(const basic_mmap<ByteT>& a, const basic_mmap<ByteT>& b)
+template<access_mode AccessMode, typename ByteT>
+bool operator<(const basic_mmap<AccessMode, ByteT>& a,
+        const basic_mmap<AccessMode, ByteT>& b)
 {
     if(a.data() == b.data()) { return a.size() < b.size(); }
     return a.data() < b.data();
 }
 
-template<typename ByteT>
-bool operator<=(const basic_mmap<ByteT>& a, const basic_mmap<ByteT>& b)
+template<access_mode AccessMode, typename ByteT>
+bool operator<=(const basic_mmap<AccessMode, ByteT>& a,
+        const basic_mmap<AccessMode, ByteT>& b)
 {
     return !(a > b);
 }
 
-template<typename ByteT>
-bool operator>(const basic_mmap<ByteT>& a, const basic_mmap<ByteT>& b)
+template<access_mode AccessMode, typename ByteT>
+bool operator>(const basic_mmap<AccessMode, ByteT>& a,
+        const basic_mmap<AccessMode, ByteT>& b)
 {
     if(a.data() == b.data()) { return a.size() > b.size(); }
     return a.data() > b.data();
 }
 
-template<typename ByteT>
-bool operator>=(const basic_mmap<ByteT>& a, const basic_mmap<ByteT>& b)
+template<access_mode AccessMode, typename ByteT>
+bool operator>=(const basic_mmap<AccessMode, ByteT>& a,
+        const basic_mmap<AccessMode, ByteT>& b)
 {
     return !(a < b);
 }
 
-} // namespace detail
 } // namespace mio
 
 #endif // MIO_BASIC_MMAP_IMPL
