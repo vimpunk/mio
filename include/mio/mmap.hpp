@@ -135,7 +135,10 @@ public:
     basic_mmap& operator=(const basic_mmap&) = delete;
     basic_mmap& operator=(basic_mmap&&);
 
-    /** The destructor invokes unmap. */
+    /**
+     * If this is a read-write mapping, the destructor invokes sync. Regardless
+     * of the access mode, unmap is invoked as a final step.
+     */
     ~basic_mmap();
 
     /**

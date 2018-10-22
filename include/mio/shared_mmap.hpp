@@ -110,6 +110,11 @@ public:
         if(error) { throw error; }
     }
 
+    /**
+     * If this is a read-write mapping and the last reference to the mapping,
+     * the destructor invokes sync. Regardless of the access mode, unmap is
+     * invoked as a final step.
+     */
     ~basic_shared_mmap() = default;
 
     /** Returns the underlying `std::shared_ptr` instance that holds the mmap. */

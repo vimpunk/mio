@@ -113,14 +113,15 @@ int main()
     const int answer_index = rw_mmap.size() / 2;
     rw_mmap[answer_index] = 42;
 
-    // Don't forget to flush changes to disk, which is NOT done by the destructor for
-    // more explicit control of this potentially expensive operation.
+    // Don't forget to flush changes to disk before unmapping. However, if
+    // `rw_mmap` were to go out of scope at this point, the destructor would also
+    // automatically invoke `sync` before `unmap`.
     rw_mmap.sync(error);
     if (error) { return handle_error(error); }
 
     // We can then remove the mapping, after which rw_mmap will be in a default
-    // constructed state, i.e. this has the same effect as if the destructor had been
-    // invoked.
+    // constructed state, i.e. this and the above call to `sync` have the same
+    // effect as if the destructor had been invoked.
     rw_mmap.unmap();
 
     // Now create the same mapping, but in read-only mode.
