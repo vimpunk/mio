@@ -42,10 +42,12 @@ namespace detail {
 enum { map_entire_file = 0 };
 
 #ifdef _WIN32
-    using file_handle_type = HANDLE;
+using file_handle_type = HANDLE;
 #else
-    using file_handle_type = int;
+using file_handle_type = int;
 #endif
+
+constexpr static file_handle_type invalid_handle = INVALID_HANDLE_VALUE;
 
 template<typename ByteT> struct basic_mmap
 {

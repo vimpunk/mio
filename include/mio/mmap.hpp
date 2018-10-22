@@ -32,6 +32,10 @@ namespace mio {
 // `map`, in which case a memory mapping of the entire file is created.
 using detail::map_entire_file;
 
+// This value represents an invalid file handle type. This can be used to
+// determine whether `basic_mmap::file_handle` is valid, for example.
+using detail::invalid_handle;
+
 template<
     access_mode AccessMode,
     typename ByteT
