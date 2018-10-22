@@ -325,6 +325,17 @@ private:
     {
         return !data() ? nullptr : data() - offset();
     }
+
+    /**
+     * The destructor syncs changes to disk if `AccessMode` is `write`, but not
+     * if it's `read`, but since the destructor cannot be templated, we need to
+     * do SFINAE in a dedicated function, where one syncs and the other is a noop.
+     */
+    template<access_mode A = AccessMode,
+            typename = typename std::enable_if<A == access_mode::write>::type>
+    void conditional_sync() { sync(); }
+    template<access_mode A = AccessMode>
+    typename std::enable_if<A == access_mode::read, void>::type conditional_sync() {}
 };
 
 template<access_mode AccessMode, typename ByteT>
