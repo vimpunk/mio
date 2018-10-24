@@ -89,8 +89,7 @@ int main()
         CHECK_INVALID_MMAP(m);
 
         // Invalid handle?
-        m = mio::make_mmap_source(
-            INVALID_HANDLE_VALUE/*Psst... This is an implementation detail!*/, 0, 0, error);
+        m = mio::make_mmap_source(mio::invalid_handle, 0, 0, error);
         CHECK_INVALID_MMAP(m);
 
         // Invalid offset?
@@ -102,6 +101,9 @@ int main()
         // Make sure custom types compile.
         mio::ummap_source _1;
         mio::shared_ummap_source _2;
+        // Make sure shared_mmap mapping compiles as all testing was done on
+        // normal mmaps.
+        mio::shared_mmap_source _3(path, 0, mio::map_entire_file);
     }
 
     std::printf("all tests passed!\n");

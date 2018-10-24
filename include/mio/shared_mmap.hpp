@@ -110,6 +110,11 @@ public:
         if(error) { throw error; }
     }
 
+    /**
+     * If this is a read-write mapping and the last reference to the mapping,
+     * the destructor invokes sync. Regardless of the access mode, unmap is
+     * invoked as a final step.
+     */
     ~basic_shared_mmap() = default;
 
     /** Returns the underlying `std::shared_ptr` instance that holds the mmap. */
@@ -120,8 +125,15 @@ public:
      * however, a mapped region of a file gets its own handle, which is returned by
      * 'mapping_handle'.
      */
-    handle_type file_handle() const noexcept { return pimpl_->file_handle(); }
-    handle_type mapping_handle() const noexcept { return pimpl_->mapping_handle(); }
+    handle_type file_handle() const noexcept
+    {
+        return pimpl_ ? pimpl_->file_handle() : invalid_handle;
+    }
+
+    handle_type mapping_handle() const noexcept
+    {
+        return pimpl_ ? pimpl_->mapping_handle() : invalid_handle;
+    }
 
     /** Returns whether a valid memory mapping has been created. */
     bool is_open() const noexcept { return pimpl_ && pimpl_->is_open(); }
@@ -142,7 +154,9 @@ public:
     size_type size() const noexcept { return pimpl_ ? pimpl_->length() : 0; }
     size_type length() const noexcept { return pimpl_ ? pimpl_->length() : 0; }
     size_type mapped_length() const noexcept
-    { return pimpl_ ? pimpl_->mapped_length() : 0; }
+    {
+        return pimpl_ ? pimpl_->mapped_length() : 0;
+    }
 
     /**
      * Returns the offset, relative to the file's start, at which the mapping was
