@@ -112,7 +112,7 @@ public:
     {
         std::error_code error;
         map(path, offset, length, error);
-        if(error) { throw error; }
+        if(error) { throw std::system_error(error); }
     }
 
     /**
@@ -123,7 +123,7 @@ public:
     {
         std::error_code error;
         map(handle, offset, length, error);
-        if(error) { throw error; }
+        if(error) { throw std::system_error(error); }
     }
 
     /**
