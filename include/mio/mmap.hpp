@@ -108,7 +108,7 @@ public:
      * establishing the mapping is thrown.
      */
     template<typename String>
-    basic_mmap(const String& path, const size_type offset, const size_type length)
+    basic_mmap(const String& path, const size_type offset = 0, const size_type length = map_entire_file)
     {
         std::error_code error;
         map(path, offset, length, error);
@@ -119,7 +119,7 @@ public:
      * The same as invoking the `map` function, except any error that may occur while
      * establishing the mapping is thrown.
      */
-    basic_mmap(const handle_type handle, const size_type offset, const size_type length)
+    basic_mmap(const handle_type handle, const size_type offset = 0, const size_type length = map_entire_file)
     {
         std::error_code error;
         map(handle, offset, length, error);
@@ -270,6 +270,24 @@ public:
             const size_type length, std::error_code& error);
 
     /**
+     * Establishes a memory mapping with AccessMode. If the mapping is unsuccesful, the
+     * reason is reported via `error` and the object remains in a state as if this
+     * function hadn't been called.
+     *
+     * `path`, which must be a path to an existing file, is used to retrieve a file
+     * handle (which is closed when the object destructs or `unmap` is called), which is
+     * then used to memory map the requested region. Upon failure, `error` is set to
+     * indicate the reason and the object remains in an unmapped state.
+     * 
+     * The entire file is mapped.
+     */
+    template<typename String>
+    void map(const String& path, std::error_code& error)
+    {
+        map(path, 0, map_entire_file, error);
+    }
+
+    /**
      * Establishes a memory mapping with AccessMode. If the mapping is
      * unsuccesful, the reason is reported via `error` and the object remains in
      * a state as if this function hadn't been called.
@@ -290,6 +308,22 @@ public:
      */
     void map(const handle_type handle, const size_type offset,
             const size_type length, std::error_code& error);
+
+    /**
+     * Establishes a memory mapping with AccessMode. If the mapping is
+     * unsuccesful, the reason is reported via `error` and the object remains in
+     * a state as if this function hadn't been called.
+     *
+     * `handle`, which must be a valid file handle, which is used to memory map the
+     * requested region. Upon failure, `error` is set to indicate the reason and the
+     * object remains in an unmapped state.
+     * 
+     * The entire file is mapped.
+     */
+    void map(const handle_type handle, std::error_code& error)
+    {
+        map(handle, 0, map_entire_file, error);
+    }
 
     /**
      * If a valid memory mapping has been created prior to this call, this call
