@@ -423,7 +423,10 @@ using ummap_source = basic_mmap_source<unsigned char>;
 using mmap_sink = basic_mmap_sink<char>;
 using ummap_sink = basic_mmap_sink<unsigned char>;
 
-/** Convenience factory method that constructs a mapping for any `basic_mmap` type. */
+/**
+ * Convenience factory method that constructs a mapping for any `basic_mmap` or
+ * `basic_mmap` type.
+ */
 template<
     typename MMap,
     typename MappingToken
@@ -449,6 +452,12 @@ mmap_source make_mmap_source(const MappingToken& token, mmap_source::size_type o
     return make_mmap<mmap_source>(token, offset, length, error);
 }
 
+template<typename MappingToken>
+mmap_source make_mmap_source(const MappingToken& token, std::error_code& error)
+{
+    return make_mmap_source(token, 0, map_entire_file, error);
+}
+
 /**
  * Convenience factory method.
  *
@@ -461,6 +470,12 @@ mmap_sink make_mmap_sink(const MappingToken& token, mmap_sink::size_type offset,
         mmap_sink::size_type length, std::error_code& error)
 {
     return make_mmap<mmap_sink>(token, offset, length, error);
+}
+
+template<typename MappingToken>
+mmap_sink make_mmap_sink(const MappingToken& token, std::error_code& error)
+{
+    return make_mmap_sink(token, 0, map_entire_file, error);
 }
 
 } // namespace mio

@@ -104,6 +104,8 @@ int main()
         // Make sure shared_mmap mapping compiles as all testing was done on
         // normal mmaps.
         mio::shared_mmap_source _3(path, 0, mio::map_entire_file);
+        auto _4 = mio::make_mmap_source(path, error);
+        auto _5 = mio::make_mmap<mio::shared_mmap_source>(path, 0, mio::map_entire_file, error);
     }
 
     std::printf("all tests passed!\n");

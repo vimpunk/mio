@@ -35,6 +35,10 @@ mio::mmap_source mmap(path);
 std::error_code error;
 mio::mmap_source mmap = mio::make_mmap_source(path, offset, size_to_map, error);
 ```
+or:
+```c++
+mio::mmap_source mmap = mio::make_mmap_source(path, error);
+```
 
 - Using the `map` member function:
 ```c++
