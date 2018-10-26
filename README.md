@@ -20,7 +20,7 @@ NOTE: the file must exist before creating a mapping.
 
 There are three ways to map a file into memory:
 
-- Using the constructor, which throws on failure:
+- Using the constructor, which throws a `std::system_error` on failure:
 ```c++
 mio::mmap_source mmap(path, offset, size_to_map);
 ```

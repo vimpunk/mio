@@ -104,8 +104,9 @@ public:
     basic_mmap() = default;
 
     /**
-     * The same as invoking the `map` function, except any error that may occur while
-     * establishing the mapping is thrown.
+     * The same as invoking the `map` function, except any error that may occur
+     * while establishing the mapping is wrapped in a `std::system_error` and is
+     * thrown.
      */
     template<typename String>
     basic_mmap(const String& path, const size_type offset = 0, const size_type length = map_entire_file)
@@ -116,8 +117,9 @@ public:
     }
 
     /**
-     * The same as invoking the `map` function, except any error that may occur while
-     * establishing the mapping is thrown.
+     * The same as invoking the `map` function, except any error that may occur
+     * while establishing the mapping is wrapped in a `std::system_error` and is
+     * thrown.
      */
     basic_mmap(const handle_type handle, const size_type offset = 0, const size_type length = map_entire_file)
     {
