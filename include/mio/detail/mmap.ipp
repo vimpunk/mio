@@ -324,8 +324,7 @@ void basic_mmap<AccessMode, ByteT>::map(const handle_type handle,
 }
 
 template<access_mode AccessMode, typename ByteT>
-template<access_mode, typename /*SFINAE*/>
-void basic_mmap<AccessMode, ByteT>::sync(std::error_code& error)
+void basic_mmap<AccessMode, ByteT>::sync_impl(std::error_code& error)
 {
     error.clear();
     if(!is_open())
