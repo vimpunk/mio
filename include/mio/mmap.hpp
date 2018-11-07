@@ -341,13 +341,9 @@ public:
     void swap(basic_mmap& other);
 
     /** Flushes the memory mapped page to disk. Errors are reported via `error`. */
-    template<
-        access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
-    > void sync(std::error_code& error)
-    {
-        sync_impl(error);
-    }
+    template<access_mode A = AccessMode>
+    typename std::enable_if<A == access_mode::write, void>::type
+    sync(std::error_code& error);
 
     /**
      * All operators compare the address of the first byte and size of the two mapped
@@ -378,15 +374,6 @@ private:
     conditional_sync();
     template<access_mode A = AccessMode>
     typename std::enable_if<A == access_mode::read, void>::type conditional_sync();
-
-    /**
-     * Due to MSVC's fragile SFINAE support (see
-     * https://github.com/mandreyel/mio/issues/300), we need to have `sync`
-     * defined inline so that `conditional_sync` sees the definition. To not
-     * clutter the API, the implementation is extracted into this non-SFINAE
-     * private member function.
-     */
-    void sync_impl(std::error_code& error);
 };
 
 template<access_mode AccessMode, typename ByteT>

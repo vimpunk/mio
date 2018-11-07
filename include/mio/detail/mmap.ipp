@@ -324,7 +324,9 @@ void basic_mmap<AccessMode, ByteT>::map(const handle_type handle,
 }
 
 template<access_mode AccessMode, typename ByteT>
-void basic_mmap<AccessMode, ByteT>::sync_impl(std::error_code& error)
+template<access_mode A>
+typename std::enable_if<A == access_mode::write, void>::type
+basic_mmap<AccessMode, ByteT>::sync(std::error_code& error)
 {
     error.clear();
     if(!is_open())
