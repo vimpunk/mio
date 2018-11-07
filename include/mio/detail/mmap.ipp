@@ -334,7 +334,7 @@ void basic_mmap<AccessMode, ByteT>::sync(std::error_code& error)
         return;
     }
 
-    if(data() != nullptr)
+    if(data())
     {
 #ifdef _WIN32
         if(::FlushViewOfFile(get_mapping_start(), mapped_length_) == 0

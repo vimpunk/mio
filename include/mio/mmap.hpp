@@ -372,7 +372,14 @@ private:
      */
     template<access_mode A = AccessMode,
             typename = typename std::enable_if<A == access_mode::write>::type>
-    void conditional_sync() { sync(); }
+    void conditional_sync()
+    {
+        // This is invoked from the destructor, so not much we can do about
+        // failures here.
+        std::error_code ec;
+        sync(ec);
+    }
+
     template<access_mode A = AccessMode>
     typename std::enable_if<A == access_mode::read, void>::type conditional_sync() {}
 };
