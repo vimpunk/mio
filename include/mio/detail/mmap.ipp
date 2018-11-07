@@ -419,6 +419,25 @@ void basic_mmap<AccessMode, ByteT>::swap(basic_mmap& other)
 }
 
 template<access_mode AccessMode, typename ByteT>
+template<access_mode A>
+typename std::enable_if<A == access_mode::write, void>::type
+basic_mmap<AccessMode, ByteT>::conditional_sync()
+{
+    // This is invoked from the destructor, so not much we can do about
+    // failures here.
+    std::error_code ec;
+    sync(ec);
+}
+
+template<access_mode AccessMode, typename ByteT>
+template<access_mode A>
+typename std::enable_if<A == access_mode::read, void>::type
+basic_mmap<AccessMode, ByteT>::conditional_sync()
+{
+    // noop
+}
+
+template<access_mode AccessMode, typename ByteT>
 bool operator==(const basic_mmap<AccessMode, ByteT>& a,
         const basic_mmap<AccessMode, ByteT>& b)
 {
