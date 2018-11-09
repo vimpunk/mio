@@ -50,6 +50,8 @@ or:
 ```c++
 mmap.map(path, error);
 ```
+**NOTE:** The constructors **require** exceptions to be enabled. If you prefer
+to build your projects with `-fno-exceptions`, you can still use the other ways.
 
 Moreover, in each case, you can provide either some string type for the file's path, or you can use an existing, valid file handle.
 ```c++
