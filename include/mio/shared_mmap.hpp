@@ -112,7 +112,7 @@ public:
         map(handle, offset, length, error);
         if(error) { throw std::system_error(error); }
     }
-#endif
+#endif // __cpp_exceptions
 
     /**
      * If this is a read-write mapping and the last reference to the mapping,

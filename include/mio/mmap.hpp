@@ -128,7 +128,8 @@ public:
         map(handle, offset, length, error);
         if(error) { throw std::system_error(error); }
     }
-#endif
+#endif // __cpp_exceptions
+
     /**
      * `basic_mmap` has single-ownership semantics, so transferring ownership
      * may only be accomplished by moving the object.
