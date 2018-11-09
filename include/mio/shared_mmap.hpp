@@ -88,28 +88,35 @@ public:
     }
 
     /**
-     * The same as invoking the `map` function, except any error that may occur while
-     * establishing the mapping is thrown.
+     * The same as invoking the `map` function, except any error that may occur
+     * while establishing the mapping is wrapped in a `std::system_error` and is
+     * thrown.
      */
     template<typename String>
-    basic_shared_mmap(const String& path, const size_type offset, const size_type length)
+    basic_shared_mmap(const String& path, const size_type offset = 0, const size_type length = map_entire_file)
     {
         std::error_code error;
         map(path, offset, length, error);
-        if(error) { throw error; }
+        if(error) { throw std::system_error(error); }
     }
 
     /**
-     * The same as invoking the `map` function, except any error that may occur while
-     * establishing the mapping is thrown.
+     * The same as invoking the `map` function, except any error that may occur
+     * while establishing the mapping is wrapped in a `std::system_error` and is
+     * thrown.
      */
-    basic_shared_mmap(const handle_type handle, const size_type offset, const size_type length)
+    basic_shared_mmap(const handle_type handle, const size_type offset = 0, const size_type length = map_entire_file)
     {
         std::error_code error;
         map(handle, offset, length, error);
-        if(error) { throw error; }
+        if(error) { throw std::system_error(error); }
     }
 
+    /**
+     * If this is a read-write mapping and the last reference to the mapping,
+     * the destructor invokes sync. Regardless of the access mode, unmap is
+     * invoked as a final step.
+     */
     ~basic_shared_mmap() = default;
 
     /** Returns the underlying `std::shared_ptr` instance that holds the mmap. */
@@ -120,8 +127,15 @@ public:
      * however, a mapped region of a file gets its own handle, which is returned by
      * 'mapping_handle'.
      */
-    handle_type file_handle() const noexcept { return pimpl_->file_handle(); }
-    handle_type mapping_handle() const noexcept { return pimpl_->mapping_handle(); }
+    handle_type file_handle() const noexcept
+    {
+        return pimpl_ ? pimpl_->file_handle() : invalid_handle;
+    }
+
+    handle_type mapping_handle() const noexcept
+    {
+        return pimpl_ ? pimpl_->mapping_handle() : invalid_handle;
+    }
 
     /** Returns whether a valid memory mapping has been created. */
     bool is_open() const noexcept { return pimpl_ && pimpl_->is_open(); }
@@ -142,7 +156,9 @@ public:
     size_type size() const noexcept { return pimpl_ ? pimpl_->length() : 0; }
     size_type length() const noexcept { return pimpl_ ? pimpl_->length() : 0; }
     size_type mapped_length() const noexcept
-    { return pimpl_ ? pimpl_->mapped_length() : 0; }
+    {
+        return pimpl_ ? pimpl_->mapped_length() : 0;
+    }
 
     /**
      * Returns the offset, relative to the file's start, at which the mapping was
@@ -242,6 +258,24 @@ public:
      * reason is reported via `error` and the object remains in a state as if this
      * function hadn't been called.
      *
+     * `path`, which must be a path to an existing file, is used to retrieve a file
+     * handle (which is closed when the object destructs or `unmap` is called), which is
+     * then used to memory map the requested region. Upon failure, `error` is set to
+     * indicate the reason and the object remains in an unmapped state.
+     *
+     * The entire file is mapped.
+     */
+    template<typename String>
+    void map(const String& path, std::error_code& error)
+    {
+        map_impl(path, 0, map_entire_file, error);
+    }
+
+    /**
+     * Establishes a memory mapping with AccessMode. If the mapping is unsuccesful, the
+     * reason is reported via `error` and the object remains in a state as if this
+     * function hadn't been called.
+     *
      * `handle`, which must be a valid file handle, which is used to memory map the
      * requested region. Upon failure, `error` is set to indicate the reason and the
      * object remains in an unmapped state.
@@ -260,6 +294,22 @@ public:
         const size_type length, std::error_code& error)
     {
         map_impl(handle, offset, length, error);
+    }
+
+    /**
+     * Establishes a memory mapping with AccessMode. If the mapping is unsuccesful, the
+     * reason is reported via `error` and the object remains in a state as if this
+     * function hadn't been called.
+     *
+     * `handle`, which must be a valid file handle, which is used to memory map the
+     * requested region. Upon failure, `error` is set to indicate the reason and the
+     * object remains in an unmapped state.
+     *
+     * The entire file is mapped.
+     */
+    void map(const handle_type handle, std::error_code& error)
+    {
+        map_impl(handle, 0, map_entire_file, error);
     }
 
     /**
