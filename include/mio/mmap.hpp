@@ -103,6 +103,7 @@ public:
      */
     basic_mmap() = default;
 
+#ifdef __cpp_exceptions
     /**
      * The same as invoking the `map` function, except any error that may occur
      * while establishing the mapping is wrapped in a `std::system_error` and is
@@ -127,6 +128,7 @@ public:
         map(handle, offset, length, error);
         if(error) { throw std::system_error(error); }
     }
+#endif // __cpp_exceptions
 
     /**
      * `basic_mmap` has single-ownership semantics, so transferring ownership
