@@ -15,6 +15,7 @@ else()
 endif()
 
 project(mio VERSION 1.0.0 LANGUAGES C CXX)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 include (CTest)
 include (CMakeDependentOption)
 
@@ -40,22 +41,41 @@ CMAKE_DEPENDENT_OPTION(mio.tests
 # transitively to linking targets. In our case, this amounts to an include
 # directory and project header files.
 #
-add_library(mio INTERFACE)
-add_library(mio::mio ALIAS mio)
+add_library(mio_base INTERFACE)
 
 #
 # mio requires C++ 11 support, at a minimum. Setting the `cxx_std_11` compile
 # features ensures that the corresponding C++ standard flag is populated in
 # targets linking to mio
 #
-target_compile_features(mio INTERFACE cxx_std_11)
+target_compile_features(mio_base INTERFACE cxx_std_11)
+
+# 
+# On Windows, so as to be a "good citizen", mio offers two different 
+# targets that control the imported surface area of the Windows API. The 
+# default `mio` target sets the necessary flags for a minimal Win API 
+# (`WIN32_LEAN_AND_MEAN`, etc.), while the `mio_full_winapi` target sets 
+# none of these flags so will not disable any of the modules.
+# 
+if(WIN32)
+    include(WinApiLevels)
+else()
+    # On non-Windows systems, the `mio` and `mio_base` targets are 
+    # effectively identical.
+    add_library(mio INTERFACE)
+    target_link_libraries(mio
+        INTERFACE mio_base
+    )
+endif()
+
+add_library(mio::mio ALIAS mio)
 
 #
 # The include directory for mio can be expected to vary between build
 # and installaion. Here we use a CMake generator expression to dispatch
 # on how the configuration under which this library is being consumed.
 #
-target_include_directories(mio INTERFACE
+target_include_directories(mio_base INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
@@ -84,7 +104,7 @@ install(DIRECTORY include/
 # generate a CMake configuration file for consumption by CMake's `find_package`
 # intrinsic
 #
-install(TARGETS mio EXPORT mioConfig)
+install(TARGETS mio_base mio EXPORT mioConfig)
 install(EXPORT mioConfig
   FILE mioConfig.cmake
   NAMESPACE mio::
