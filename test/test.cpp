@@ -98,7 +98,7 @@ int main()
     }
 
     {
-        // Make sure custom types compile.
+        // Make sure these compile.
         mio::ummap_source _1;
         mio::shared_ummap_source _2;
         // Make sure shared_mmap mapping compiles as all testing was done on
@@ -106,6 +106,16 @@ int main()
         mio::shared_mmap_source _3(path, 0, mio::map_entire_file);
         auto _4 = mio::make_mmap_source(path, error);
         auto _5 = mio::make_mmap<mio::shared_mmap_source>(path, 0, mio::map_entire_file, error);
+#ifdef _WIN32
+        const wchar_t* wpath1 = L"dasfsf";
+        auto _6 = mio::make_mmap_source(wpath1, error);
+        mio::mmap_source _7;
+        _7.map(wpath1, error);
+        const std::wstring wpath2 = wpath1;
+        auto _8 = mio::make_mmap_source(wpath2, error);
+        mio::mmap_source _9;
+        _9.map(wpath1, error);
+#endif
     }
 
     std::printf("all tests passed!\n");
