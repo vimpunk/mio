@@ -38,18 +38,53 @@ namespace mio {
 namespace detail {
 
 #ifdef _WIN32
-/** Returns the 4 upper bytes of a 8-byte integer. */
+namespace win {
+
+/** Returns the 4 upper bytes of an 8-byte integer. */
 inline DWORD int64_high(int64_t n) noexcept
 {
     return n >> 32;
 }
 
-/** Returns the 4 lower bytes of a 8-byte integer. */
+/** Returns the 4 lower bytes of an 8-byte integer. */
 inline DWORD int64_low(int64_t n) noexcept
 {
     return n & 0xffffffff;
 }
-#endif
+
+template<
+    typename String,
+    typename = typename std::enable_if<
+        std::is_same<typename char_type<String>::type, char>::value
+    >::type
+> file_handle_type open_file_helper(const String& path, const access_mode mode)
+{
+    return ::CreateFileA(c_str(path),
+            mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            0,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            0);
+}
+
+template<typename String>
+typename std::enable_if<
+    std::is_same<typename char_type<String>::type, wchar_t>::value,
+    file_handle_type
+>::type open_file_helper(const String& path, const access_mode mode)
+{
+    return ::CreateFileW(c_str(path),
+            mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            0,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            0);
+}
+
+} // win
+#endif // _WIN32
 
 /**
  * Returns the last platform specific system error (errno on POSIX and
@@ -67,8 +102,8 @@ inline std::error_code last_error() noexcept
 }
 
 template<typename String>
-file_handle_type open_file(const String& path,
-        const access_mode mode, std::error_code& error)
+file_handle_type open_file(const String& path, const access_mode mode,
+        std::error_code& error)
 {
     error.clear();
     if(detail::empty(path))
@@ -77,13 +112,7 @@ file_handle_type open_file(const String& path,
         return invalid_handle;
     }
 #ifdef _WIN32
-    const auto handle = ::CreateFileA(c_str(path),
-            mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
-            FILE_SHARE_READ | FILE_SHARE_WRITE,
-            0,
-            OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
-            0);
+    const auto handle = win::open_file_helper(path, mode);
 #else // POSIX
     const auto handle = ::open(c_str(path),
             mode == access_mode::read ? O_RDONLY : O_RDWR);
@@ -138,8 +167,8 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
             file_handle,
             0,
             mode == access_mode::read ? PAGE_READONLY : PAGE_READWRITE,
-            int64_high(max_file_size),
-            int64_low(max_file_size),
+            win::int64_high(max_file_size),
+            win::int64_low(max_file_size),
             0);
     if(file_mapping_handle == invalid_handle)
     {
@@ -149,8 +178,8 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
     char* mapping_start = static_cast<char*>(::MapViewOfFile(
             file_mapping_handle,
             mode == access_mode::read ? FILE_MAP_READ : FILE_MAP_WRITE,
-            int64_high(aligned_offset),
-            int64_low(aligned_offset),
+            win::int64_high(aligned_offset),
+            win::int64_low(aligned_offset),
             length_to_map));
     if(mapping_start == nullptr)
     {
