@@ -331,7 +331,7 @@ void basic_mmap<AccessMode, ByteT>::map(const handle_type handle,
     }
 
     const auto ctx = detail::memory_map(handle, offset,
-            length == map_entire_file ? file_size : length,
+            length == map_entire_file ? (file_size - offset) : length,
             AccessMode, error);
     if(!error)
     {

@@ -57,7 +57,7 @@ template<access_mode AccessMode, typename ByteT>
 struct basic_mmap
 {
     using value_type = ByteT;
-    using size_type = int64_t;
+    using size_type = size_t;
     using reference = value_type&;
     using const_reference = const value_type&;
     using pointer = value_type*;
@@ -90,9 +90,11 @@ private:
     handle_type file_mapping_handle_ = INVALID_HANDLE_VALUE;
 #endif
 
-    // some complexity in that we must not close the file handle if user provided it,
-    // but we must close it if we obtained it using the provided path. For this reason,
-    // this flag is used to determine when to close file_handle_.
+    // Letting user map a file using both an existing file handle and a path
+    // introcudes some complexity in that we must not close the file handle if
+    // user provided it, but we must close it if we obtained it using the
+    // provided path. For this reason, this flag is used to determine when to
+    // close file_handle_.
     bool is_handle_internal_;
 
 public:
