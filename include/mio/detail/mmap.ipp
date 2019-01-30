@@ -318,7 +318,7 @@ void basic_mmap<AccessMode, ByteT>::map(const handle_type handle,
         return;
     }
 
-    const auto file_size = detail::query_file_size(handle, error);
+    const size_t file_size = detail::query_file_size(handle, error);
     if(error)
     {
         return;
