@@ -124,7 +124,7 @@ file_handle_type open_file(const String& path, const access_mode mode,
     return handle;
 }
 
-inline int64_t query_file_size(file_handle_type handle, std::error_code& error)
+inline size_t query_file_size(file_handle_type handle, std::error_code& error)
 {
     error.clear();
 #ifdef _WIN32
