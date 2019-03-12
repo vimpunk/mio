@@ -4,8 +4,10 @@
 #include <string>
 #include <fstream>
 #include <cstdlib>
+#include <iostream>
 #include <cassert>
 #include <system_error>
+#include <numeric>
 
 int handle_error(const std::error_code& error)
 {
@@ -29,25 +31,34 @@ int main()
     std::copy(_path, _path + path_len, path);
     std::error_code error;
     // Fill buffer, then write it to file.
-    std::string buffer(0x4000 - 250, 'M');
+    const int file_size = 0x4000 - 250;
+    std::string buffer(file_size, 0);
+    std::iota(buffer.begin(), buffer.end(), 1);
     std::ofstream file(path);
     file << buffer;
     file.close();
 
+    const size_t offset = 300;
+    assert(offset < buffer.size());
+
     {
         // Map the region of the file to which buffer was written.
         mio::mmap_source file_view = mio::make_mmap_source(
-                path, 0, mio::map_entire_file, error);
+                path, offset, mio::map_entire_file, error);
         if(error) { return handle_error(error); }
 
+        const size_t mapped_size = buffer.size() - offset;
         assert(file_view.is_open());
-        assert(file_view.size() == buffer.size());
+        assert(file_view.size() == mapped_size);
 
         // Then verify that mmap's bytes correspond to that of buffer.
-        for(auto i = 0; i < buffer.size(); ++i) {
-            if(file_view[i] != buffer[i]) {
-                std::printf("%ith byte mismatch: expected(%i) <> actual(%i)",
-                        i, buffer[i], file_view[i]);
+        for(size_t buf_idx = offset, view_idx = 0;
+                buf_idx < buffer.size() && view_idx < mapped_size;
+                ++buf_idx, ++view_idx) {
+            if(file_view[view_idx] != buffer[buf_idx]) {
+                std::printf("%luth byte mismatch: expected(%d) <> actual(%d)",
+                        buf_idx, buffer[buf_idx], file_view[view_idx]);
+                std::cout << std::flush;
                 assert(0);
             }
         }
@@ -57,13 +68,16 @@ int main()
 
         assert(!file_view.is_open());
         assert(shared_file_view.is_open());
-        assert(shared_file_view.size() == buffer.size());
+        assert(shared_file_view.size() == mapped_size);
 
-        // Then verify that mmap's bytes correspond to that of buffer.
-        for(auto i = 0; i < buffer.size(); ++i) {
-            if(shared_file_view[i] != buffer[i]) {
-                std::printf("%ith byte mismatch: expected(%i) <> actual(%i)",
-                        i, buffer[i], shared_file_view[i]);
+        // Then verify that shared_mmap's bytes correspond to that of buffer.
+        for(size_t buf_idx = offset, view_idx = 0;
+                buf_idx < buffer.size() && view_idx < mapped_size;
+                ++buf_idx, ++view_idx) {
+            if(shared_file_view[view_idx] != buffer[buf_idx]) {
+                std::printf("%luth byte mismatch: expected(%d) <> actual(%d)",
+                        buf_idx, buffer[buf_idx], shared_file_view[view_idx]);
+                std::cout << std::flush;
                 assert(0);
             }
         }
