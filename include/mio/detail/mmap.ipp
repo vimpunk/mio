@@ -400,9 +400,10 @@ void basic_mmap<AccessMode, ByteT>::unmap()
     if(data_) { ::munmap(const_cast<pointer>(get_mapping_start()), mapped_length_); }
 #endif
 
-    // If file_handle_ was obtained by our opening it (when map is called with a path,
-    // rather than an existing file handle), we need to close it, otherwise it must not
-    // be closed as it may still be used outside this instance.
+    // If `file_handle_` was obtained by our opening it (when map is called with
+    // a path, rather than an existing file handle), we need to close it,
+    // otherwise it must not be closed as it may still be used outside this
+    // instance.
     if(is_handle_internal_)
     {
 #ifdef _WIN32
