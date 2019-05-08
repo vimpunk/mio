@@ -31,9 +31,19 @@ int main()
     std::copy(_path, _path + path_len, path);
     std::error_code error;
     // Fill buffer, then write it to file.
-    const int file_size = 0x4000 - 250;
+    const int file_size = 0x4000 - 250; // 16134
     std::string buffer(file_size, 0);
-    std::iota(buffer.begin(), buffer.end(), 1);
+    // Start at first printable ASCII character.
+    char v = 33;
+    for (auto& b : buffer) {
+       b = v;
+       ++v; 
+       // Limit to last printable ASCII character.
+       v %= 126;
+       if(v == 0) {
+           v = 33;
+       }
+    }
     std::ofstream file(path);
     file << buffer;
     file.close();
@@ -47,7 +57,7 @@ int main()
                 path, offset, mio::map_entire_file, error);
         if(error) { return handle_error(error); }
 
-        const size_t mapped_size = buffer.size() - offset;
+        const size_t mapped_size = buffer.size() - offset; // 15834
         assert(file_view.is_open());
         assert(file_view.size() == mapped_size);
 
