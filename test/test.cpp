@@ -9,6 +9,12 @@
 #include <system_error>
 #include <numeric>
 
+#ifndef _WIN32
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#endif
+
 int handle_error(const std::error_code& error)
 {
     const auto& errmsg = error.message();
@@ -121,8 +127,8 @@ int main()
         CHECK_INVALID_MMAP(m);
     }
 
+    // Make sure these compile.
     {
-        // Make sure these compile.
         mio::ummap_source _1;
         mio::shared_ummap_source _2;
         // Make sure shared_mmap mapping compiles as all testing was done on
@@ -139,6 +145,11 @@ int main()
         auto _8 = mio::make_mmap_source(wpath2, error);
         mio::mmap_source _9;
         _9.map(wpath1, error);
+#else
+        const int fd = open(path, O_RDONLY);
+        mio::mmap_source _fdmmap(fd, 0, mio::map_entire_file);
+        _fdmmap.unmap();
+        _fdmmap.map(fd, error);
 #endif
     }
 
