@@ -201,7 +201,7 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
     }
 #endif
     mmap_context ctx;
-    ctx.data = mapping_start + offset;
+    ctx.data = mapping_start + offset - aligned_offset;
     ctx.length = length;
     ctx.mapped_length = length_to_map;
 #ifdef _WIN32
