@@ -163,12 +163,6 @@ public:
     }
 
     /**
-     * Returns the offset, relative to the file's start, at which the mapping was
-     * requested to be created.
-     */
-    size_type offset() const noexcept { return pimpl_ ? pimpl_->offset() : 0; }
-
-    /**
      * Returns a pointer to the first requested byte, or `nullptr` if no memory mapping
      * exists.
      */

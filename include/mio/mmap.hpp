@@ -180,11 +180,11 @@ public:
     size_type length() const noexcept { return length_; }
     size_type mapped_length() const noexcept { return mapped_length_; }
 
-    /**
-     * Returns the offset, relative to the file's start, at which the mapping was
-     * requested to be created.
-     */
-    size_type offset() const noexcept { return mapped_length_ - length_; }
+    /** Returns the offset relative to the start of the mapping. */
+    size_type mapping_offset() const noexcept
+    {
+        return mapped_length_ - length_;
+    }
 
     /**
      * Returns a pointer to the first requested byte, or `nullptr` if no memory mapping
@@ -362,12 +362,12 @@ private:
         typename = typename std::enable_if<A == access_mode::write>::type
     > pointer get_mapping_start() noexcept
     {
-        return !data() ? nullptr : data() - offset();
+        return !data() ? nullptr : data() - mapping_offset();
     }
 
     const_pointer get_mapping_start() const noexcept
     {
-        return !data() ? nullptr : data() - offset();
+        return !data() ? nullptr : data() - mapping_offset();
     }
 
     /**
