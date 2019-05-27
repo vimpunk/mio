@@ -155,15 +155,17 @@ private:
     // Points to the first requested byte, and not to the actual start of the mapping.
     pointer data_ = nullptr;
 
-    // Length, in bytes, requested by user, which may not be the length of the full
-    // mapping, and the entire length of the full mapping.
+    // Length--in bytes--requested by user (which may not be the length of the
+    // full mapping) and the length of the full mapping.
     size_type length_ = 0;
     size_type mapped_length_ = 0;
 
-    // Letting user map a file using both an existing file handle and a path introcudes
-    // On POSIX, we only need a file handle to create a mapping, while on Windows
-    // systems the file handle is necessary to retrieve a file mapping handle, but any
-    // subsequent operations on the mapped region must be done through the latter.
+    // Letting user map a file using both an existing file handle and a path
+    // introcudes some complexity (see `is_handle_internal_`).
+    // On POSIX, we only need a file handle to create a mapping, while on
+    // Windows systems the file handle is necessary to retrieve a file mapping
+    // handle, but any subsequent operations on the mapped region must be done
+    // through the latter.
     handle_type file_handle_ = INVALID_HANDLE_VALUE;
 #ifdef _WIN32
     handle_type file_mapping_handle_ = INVALID_HANDLE_VALUE;
@@ -173,7 +175,7 @@ private:
     // introcudes some complexity in that we must not close the file handle if
     // user provided it, but we must close it if we obtained it using the
     // provided path. For this reason, this flag is used to determine when to
-    // close file_handle_.
+    // close `file_handle_`.
     bool is_handle_internal_;
 
 public:
@@ -257,11 +259,11 @@ public:
     size_type length() const noexcept { return length_; }
     size_type mapped_length() const noexcept { return mapped_length_; }
 
-    /**
-     * Returns the offset, relative to the file's start, at which the mapping was
-     * requested to be created.
-     */
-    size_type offset() const noexcept { return mapped_length_ - length_; }
+    /** Returns the offset relative to the start of the mapping. */
+    size_type mapping_offset() const noexcept
+    {
+        return mapped_length_ - length_;
+    }
 
     /**
      * Returns a pointer to the first requested byte, or `nullptr` if no memory mapping
@@ -439,12 +441,12 @@ private:
         typename = typename std::enable_if<A == access_mode::write>::type
     > pointer get_mapping_start() noexcept
     {
-        return !data() ? nullptr : data() - offset();
+        return !data() ? nullptr : data() - mapping_offset();
     }
 
     const_pointer get_mapping_start() const noexcept
     {
-        return !data() ? nullptr : data() - offset();
+        return !data() ? nullptr : data() - mapping_offset();
     }
 
     /**
@@ -1140,9 +1142,10 @@ void basic_mmap<AccessMode, ByteT>::unmap()
     if(data_) { ::munmap(const_cast<pointer>(get_mapping_start()), mapped_length_); }
 #endif
 
-    // If file_handle_ was obtained by our opening it (when map is called with a path,
-    // rather than an existing file handle), we need to close it, otherwise it must not
-    // be closed as it may still be used outside this instance.
+    // If `file_handle_` was obtained by our opening it (when map is called with
+    // a path, rather than an existing file handle), we need to close it,
+    // otherwise it must not be closed as it may still be used outside this
+    // instance.
     if(is_handle_internal_)
     {
 #ifdef _WIN32
@@ -1500,12 +1503,6 @@ public:
     {
         return pimpl_ ? pimpl_->mapped_length() : 0;
     }
-
-    /**
-     * Returns the offset, relative to the file's start, at which the mapping was
-     * requested to be created.
-     */
-    size_type offset() const noexcept { return pimpl_ ? pimpl_->offset() : 0; }
 
     /**
      * Returns a pointer to the first requested byte, or `nullptr` if no memory mapping
