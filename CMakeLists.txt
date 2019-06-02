@@ -10,17 +10,35 @@ cmake_minimum_required(VERSION 3.8)
 #
 if(DEFINED PROJECT_NAME)
   set(subproject ON)
+  set(INSTALL_SUBPROJECTS ON CACHE BOOL "Install subproject dependencies")
 else()
   set(subproject OFF)
+  set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 endif()
 
-project(mio VERSION 1.0.0 LANGUAGES C CXX)
+project(mio VERSION 1.1.0 LANGUAGES C CXX)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
-include (CTest)
-include (CMakeDependentOption)
+include(CMakeDependentOption)
+include(CMakePackageConfigHelpers)
+include(CTest)
+include(GNUInstallDirs)
 
 # Generate 'compile_commands.json' for clang_complete
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+#
+# mio requires C++ 11 support, at a minimum. The `CMAKE_CXX_STANDARD` variable
+# is referenced when a target is created to initialize the CXX_STANDARD target
+# property.
+#
+# ** NOTE **
+# This is a directory scope variable. This has several implicitations.
+#
+# 1. It DOES NOT propegate to parent scopes (such as parent projects)
+# 2. It hides cache variables of the same name for this directory and below
+#
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 #
 # The `mio.testing` options only appear as cmake-gui and ccmake options iff
@@ -36,38 +54,44 @@ CMAKE_DEPENDENT_OPTION(mio.tests
   ${BUILD_TESTING} "NOT subproject" OFF)
 
 #
+# On Windows, so as to be a "good citizen", mio offers two mechanisms to control
+# the imported surface area of the Windows API. The default `mio` target sets
+# the necessary flags for a minimal Win API (`WIN32_LEAN_AND_MEAN`, etc.) on
+# linking targets. This is, in our view, the conservative behavior.
+#
+# However, an option is published in the cache allowing client to opt out of
+# these compiler definintions. This preference will persist in the installed
+# cmake configuration file, but can be modified by downstream users by way of
+# the same cmake cache variable. This allows intermediate consumers (e.g. other
+# libraries) to defer this decision making to downstream clients.
+#
+# Beyond the option-based mechanism, two additional targets,
+# mio::mio_min_winapi and mio::mio_full_winapi, are specified below for those
+# that expressly requiring either the minimal or full windows API, respectively.
+#
+CMAKE_DEPENDENT_OPTION(mio.windows.full_api
+  "Configure mio without WIN32_LEAN_AND_MEAN and NOMINMAX definitions"
+  OFF "WIN32" ON)
+
+#
+# When the end user is consuming mio as a nested subproject, an option
+# is provided such that the user may exlude mio from the set of installed
+# cmake projects. This accomodates end users building executables or
+# compiled libraries which privately link to mio, but wish to only ship their
+# artifacts in an installation
+#
+CMAKE_DEPENDENT_OPTION(mio.installation
+  "Include mio in the install set"
+  "${INSTALL_SUBPROJECTS}" "subproject" ON)
+mark_as_advanced(mio.installation)
+
+#
 # mio has no compiled components. As such, we declare it as an `INTERFACE`
 # library, which denotes a collection of target properties to be applied
 # transitively to linking targets. In our case, this amounts to an include
-# directory and project header files.
+# directory and (potentially) some preprocessor definitions.
 #
-add_library(mio_base INTERFACE)
-
-#
-# mio requires C++ 11 support, at a minimum. Setting the `cxx_std_11` compile
-# features ensures that the corresponding C++ standard flag is populated in
-# targets linking to mio
-#
-target_compile_features(mio_base INTERFACE cxx_std_11)
-
-# 
-# On Windows, so as to be a "good citizen", mio offers two different 
-# targets that control the imported surface area of the Windows API. The 
-# default `mio` target sets the necessary flags for a minimal Win API 
-# (`WIN32_LEAN_AND_MEAN`, etc.), while the `mio_full_winapi` target sets 
-# none of these flags so will not disable any of the modules.
-# 
-if(WIN32)
-    include(WinApiLevels)
-else()
-    # On non-Windows systems, the `mio` and `mio_base` targets are 
-    # effectively identical.
-    add_library(mio INTERFACE)
-    target_link_libraries(mio
-        INTERFACE mio_base
-    )
-endif()
-
+add_library(mio INTERFACE)
 add_library(mio::mio ALIAS mio)
 
 #
@@ -75,9 +99,47 @@ add_library(mio::mio ALIAS mio)
 # and installaion. Here we use a CMake generator expression to dispatch
 # on how the configuration under which this library is being consumed.
 #
-target_include_directories(mio_base INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
+# We define the generator expression as a variable, such that the logic
+# need not be repeated when populating source file paths.
+#
+string(CONCAT prefix
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>"
+  "$<INSTALL_INTERFACE:include>")
+
+target_include_directories(mio INTERFACE ${prefix})
+
+if(NOT mio.windows.full_api)
+  target_compile_definitions(mio INTERFACE
+    $<BUILD_INTERFACE:WIN32_LEAN_AND_MEAN>
+    $<BUILD_INTERFACE:NOMINMAX>)
+endif()
+
+if(WIN32)
+  add_library(mio_full_winapi INTERFACE)
+  add_library(mio::mio_full_winapi ALIAS mio_full_winapi)
+  target_include_directories(mio_full_winapi INTERFACE ${prefix})
+
+  add_library(mio_min_winapi INTERFACE)
+  add_library(mio::mio_min_winapi ALIAS mio_full_winapi)
+  target_compile_definitions(mio INTERFACE WIN32_LEAN_AND_MEAN NOMINMAX)
+  target_include_directories(mio_min_winapi INTERFACE ${prefix})
+endif()
+
+#
+# In order to collect mio's header files in IDE tools such as XCode or Visual
+# Studio, there must exist a target adding any such header files as source files.
+#
+# Given mio is an interface target, source files may only be added with the
+# INTERFACE keyword, which consequently propegate to linking targets. This
+# behavior isn't desirable to all clients.
+#
+# To accomodate, a second target is declared which collects the header files,
+# which links to the primary mio target. As such, the header files are available
+# in IDE tools.
+#
+add_library(mio-headers INTERFACE)
+add_library(mio::mio-headers ALIAS mio-headers)
+target_link_libraries(mio-headers INTERFACE mio)
 
 add_subdirectory(include/mio)
 
@@ -85,68 +147,84 @@ if(mio.tests)
   add_subdirectory(test)
 endif()
 
-#
-# Non-testing header files (preserving relative paths) are installed to the
-# `include` subdirectory of the `$INSTALL_DIR/${CMAKE_INSTALL_PREFIX}`
-# directory. Source file permissions preserved.
-#
-install(DIRECTORY include/
-  DESTINATION include
-  USE_SOURCE_PERMISSIONS
-  FILES_MATCHING PATTERN "*.*pp")
+if(mio.installation)
+  #
+  # Non-testing header files (preserving relative paths) are installed to the
+  # `include` subdirectory of the `$INSTALL_DIR/${CMAKE_INSTALL_PREFIX}`
+  # directory. Source file permissions preserved.
+  #
+  install(DIRECTORY include/
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+    FILES_MATCHING PATTERN "*.*pp")
 
-#
-# As a header-only library, there are no target components to be installed
-# directly (the PUBLIC_HEADER property is not white listed for INTERFACE
-# targets for some reason).
-#
-# However, it is worthwhile export our target description in order to later
-# generate a CMake configuration file for consumption by CMake's `find_package`
-# intrinsic
-#
-install(TARGETS mio_base mio EXPORT mioConfig)
-install(EXPORT mioConfig
-  FILE mioConfig.cmake
-  NAMESPACE mio::
-  DESTINATION share/cmake/mio
-  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+  #
+  # As a header-only library, there are no target components to be installed
+  # directly (the PUBLIC_HEADER property is not white listed for INTERFACE
+  # targets for some reason).
+  #
+  # However, it is worthwhile export our target description in order to later
+  # generate a CMake configuration file for consumption by CMake's `find_package`
+  # intrinsic
+  #
+  install(TARGETS mio mio-headers EXPORT mioTargets)
 
-include(CMakePackageConfigHelpers) # provides `write_basic_package_version_file`
-write_basic_package_version_file("mioConfigVersion.cmake"
-  VERSION ${mio_VERSION}
-  COMPATIBILITY SameMajorVersion)
+  if(WIN32)
+    install(TARGETS mio_full_winapi mio_min_winapi EXPORT mioTargets)
+  endif()
 
-install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mioConfigVersion.cmake"
-  DESTINATION share/cmake/mio
-  PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+  install(EXPORT mioTargets
+    FILE mio-targets.cmake
+    NAMESPACE mio::
+    DESTINATION share/cmake/mio)
 
-#
-# Rudimentary CPack support.
-#
-# CPack provides a mechanism to generate installation packaging for a project,
-# e.g., self-extracting shell scripts, compressed tarballs, Debian Package files,
-# RPM Package Manager files, Windows NSIS installation wizards,
-# Apple Disk Images (.dmg), etc.
-#
-# Any system libraries required (runtimes, threading, etc) should be bundled
-# with the project for this type of installation. The
-# `InstallRequiredSystemLibraries` CMake module attempts to provide this
-# functionality in an automated way. Additional libraries may be specified as
-#
-# ```cmake
-# list(APPEND CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS <library>)
-# ```
-#
-# A packaged installation can be generated by calling
-#
-# ```sh
-# cpack -G <packaging type> --config CPackConfig.cmake
-# ```
-#
-# See `cpack --help` or the CPack documentation for more information.
-#
-include( InstallRequiredSystemLibraries )
-set( CPACK_PACKAGE_VENDOR "mandreyel" )
-set( CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE" )
-set( CMAKE_PROJECT_HOMEPAGE_URL "https://github.com/mandreyel/mio" )
-include( CPack )
+  write_basic_package_version_file("mio-config-version.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion)
+
+  configure_file(
+    "${PROJECT_SOURCE_DIR}/cmake/mio-config.cmake.in"
+    "${PROJECT_BINARY_DIR}/mio-config.cmake"
+    @ONLY)
+
+  install(FILES
+    "${PROJECT_BINARY_DIR}/mio-config-version.cmake"
+    "${PROJECT_BINARY_DIR}/mio-config.cmake"
+    DESTINATION share/cmake/mio)
+
+  #
+  # Rudimentary CPack support.
+  #
+  # CPack provides a mechanism to generate installation packaging for a project,
+  # e.g., self-extracting shell scripts, compressed tarballs, Debian Package files,
+  # RPM Package Manager files, Windows NSIS installation wizards,
+  # Apple Disk Images (.dmg), etc.
+  #
+  # Any system libraries required (runtimes, threading, etc) should be bundled
+  # with the project for this type of installation. The
+  # `InstallRequiredSystemLibraries` CMake module attempts to provide this
+  # functionality in an automated way. Additional libraries may be specified as
+  #
+  # ```cmake
+  # list(APPEND CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS <library>)
+  # ```
+  #
+  # A packaged installation can be generated by calling
+  #
+  # ```sh
+  # cpack -G <packaging type> --config CPackConfig.cmake
+  # ```
+  #
+  # See `cpack --help` or the CPack documentation for more information.
+  #
+  if(NOT subproject)
+    set(CPACK_PACKAGE_VENDOR "mandreyel")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+      "Cross-platform C++11 header-only library for memory mapped file IO")
+    set(CMAKE_PROJECT_HOMEPAGE_URL "https://github.com/mandreyel/mio")
+    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+    set(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
+    set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
+    set(CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
+    include(CPack)
+  endif()
+endif()
