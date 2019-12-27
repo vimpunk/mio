@@ -183,6 +183,8 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
             length_to_map));
     if(mapping_start == nullptr)
     {
+        // Close file handle if mapping it failed.
+        ::CloseHandle(file_mapping_handle);
         error = detail::last_error();
         return {};
     }
@@ -438,14 +440,14 @@ void basic_mmap<AccessMode, ByteT>::swap(basic_mmap& other)
     if(this != &other)
     {
         using std::swap;
-        swap(data_, other.data_); 
-        swap(file_handle_, other.file_handle_); 
+        swap(data_, other.data_);
+        swap(file_handle_, other.file_handle_);
 #ifdef _WIN32
-        swap(file_mapping_handle_, other.file_mapping_handle_); 
+        swap(file_mapping_handle_, other.file_mapping_handle_);
 #endif
-        swap(length_, other.length_); 
-        swap(mapped_length_, other.mapped_length_); 
-        swap(is_handle_internal_, other.is_handle_internal_); 
+        swap(length_, other.length_);
+        swap(mapped_length_, other.mapped_length_);
+        swap(is_handle_internal_, other.is_handle_internal_);
     }
 }
 
