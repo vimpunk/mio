@@ -793,6 +793,16 @@ inline DWORD int64_low(int64_t n) noexcept
 {
     return n & 0xffffffff;
 }
+	
+std::wstring s2ws(const std::string& s)
+{
+    if (s.empty()) 
+        return{};
+    const auto sLength = static_cast<int>(s.length());
+    auto buf = std::vector<wchar_t>(sLength);
+    const auto wideCharCount = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), sLength, buf.data(), sLength);
+    return std::wstring(buf.data(), wideCharCount);
+}
 
 template<
     typename String,
@@ -801,7 +811,7 @@ template<
     >::type
 > file_handle_type open_file_helper(const String& path, const access_mode mode)
 {
-    return ::CreateFileA(c_str(path),
+    return ::CreateFileW(s2ws(path).c_str(),
             mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             0,
