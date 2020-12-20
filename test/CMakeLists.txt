@@ -14,12 +14,12 @@ if(WIN32)
     add_test(NAME mio.unicode.test COMMAND mio.test)
 
     add_executable(mio.fullwinapi.test test.cpp)
-    target_link_libraries(mio.fullwinapi.test 
+    target_link_libraries(mio.fullwinapi.test
       PRIVATE mio::mio_full_winapi)
     add_test(NAME mio.fullwinapi.test COMMAND mio.fullwinapi.test)
 
-    add_executable(mio.fullwinapi.test test.cpp)
-    target_link_libraries(mio.fullwinapi.test 
+    add_executable(mio.minwinapi.test test.cpp)
+    target_link_libraries(mio.minwinapi.test
       PRIVATE mio::mio_min_winapi)
     add_test(NAME mio.minwinapi.test COMMAND mio.minwinapi.test)
 endif()

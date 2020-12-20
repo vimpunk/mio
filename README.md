@@ -59,6 +59,7 @@ Moreover, in each case, you can provide either some string type for the file's p
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <mio/mmap.hpp>
+// #include <mio/mio.hpp> if using single header
 #include <algorithm>
 
 int main()
@@ -78,6 +79,7 @@ for functions where character strings are expected (e.g. path parameters).
 
 ```c++
 #include <mio/mmap.hpp>
+// #include <mio/mio.hpp> if using single header
 #include <system_error> // for std::error_code
 #include <cstdio> // for std::printf
 #include <cassert>
