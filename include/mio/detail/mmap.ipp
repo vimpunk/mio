@@ -52,6 +52,16 @@ inline DWORD int64_low(int64_t n) noexcept
     return n & 0xffffffff;
 }
 
+std::wstring s_2_ws(const std::string& s)
+{
+    if (s.empty())
+        return{};
+    const auto s_length = static_cast<int>(s.length());
+    auto buf = std::vector<wchar_t>(s_length);
+    const auto wide_char_count = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), s_length, buf.data(), s_length);
+    return std::wstring(buf.data(), wide_char_count);
+}
+
 template<
     typename String,
     typename = typename std::enable_if<
@@ -59,7 +69,7 @@ template<
     >::type
 > file_handle_type open_file_helper(const String& path, const access_mode mode)
 {
-    return ::CreateFileA(c_str(path),
+    return ::CreateFileW(s_2_ws(path).c_str(),
             mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             0,
