@@ -816,7 +816,7 @@ std::wstring s_2_ws(const std::string& s)
         return{};
     const auto s_length = static_cast<int>(s.length());
     auto buf = std::vector<wchar_t>(s_length);
-    const auto wide_char_count = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), sLength, buf.data(), s_length);
+    const auto wide_char_count = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), s_length, buf.data(), s_length);
     return std::wstring(buf.data(), wide_char_count);
 }
 
