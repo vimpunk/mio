@@ -794,22 +794,6 @@ inline DWORD int64_low(int64_t n) noexcept
     return n & 0xffffffff;
 }
 
-template<
-    typename String,
-    typename = typename std::enable_if<
-        std::is_same<typename char_type<String>::type, char>::value
-    >::type
-> file_handle_type open_file_helper(const String& path, const access_mode mode)
-{
-    return ::CreateFileA(c_str(path),
-            mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
-            FILE_SHARE_READ | FILE_SHARE_WRITE,
-            0,
-            OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
-            0);
-}
-
 std::wstring s_2_ws(const std::string& s)
 {
     if (s.empty())
@@ -820,13 +804,29 @@ std::wstring s_2_ws(const std::string& s)
     return std::wstring(buf.data(), wide_char_count);
 }
 
+template<
+    typename String,
+    typename = typename std::enable_if<
+        std::is_same<typename char_type<String>::type, char>::value
+    >::type
+> file_handle_type open_file_helper(const String& path, const access_mode mode)
+{
+    return ::CreateFileW(s_2_ws(path).c_str(),
+            mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            0,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            0);
+}
+
 template<typename String>
 typename std::enable_if<
     std::is_same<typename char_type<String>::type, wchar_t>::value,
     file_handle_type
 >::type open_file_helper(const String& path, const access_mode mode)
 {
-    return ::CreateFileW(s_2_ws(path).c_str(),
+    return ::CreateFileW(c_str(path),
             mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             0,
