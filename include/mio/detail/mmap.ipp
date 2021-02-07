@@ -27,7 +27,9 @@
 
 #include <algorithm>
 
-#ifndef _WIN32
+#ifdef _WIN32
+# include <vector>
+#else
 # include <unistd.h>
 # include <fcntl.h>
 # include <sys/mman.h>
