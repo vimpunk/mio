@@ -26,6 +26,7 @@
 #include "mio/detail/string_util.hpp"
 
 #include <algorithm>
+#include <vector>
 
 #ifndef _WIN32
 # include <unistd.h>
@@ -52,7 +53,7 @@ inline DWORD int64_low(int64_t n) noexcept
     return n & 0xffffffff;
 }
 
-std::wstring s_2_ws(const std::string& s)
+inline std::wstring s_2_ws(const std::string& s)
 {
     if (s.empty())
         return{};
