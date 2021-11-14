@@ -1348,7 +1348,10 @@ template<
 
 
 #include <algorithm>
-#include <vector>
+
+#ifdef _WIN32
+# include <vector>
+#endif
 
 #ifndef _WIN32
 # include <unistd.h>
@@ -1863,7 +1866,10 @@ bool operator>=(const basic_mmap<AccessMode, ByteT>& a,
 
 
 #include <algorithm>
-#include <vector>
+
+#ifdef _WIN32
+# include <vector>
+#endif
 
 #ifndef _WIN32
 # include <unistd.h>
