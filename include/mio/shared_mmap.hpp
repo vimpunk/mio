@@ -168,7 +168,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > pointer data() noexcept { return pimpl_->data(); }
     const_pointer data() const noexcept { return pimpl_ ? pimpl_->data() : nullptr; }
 
@@ -186,7 +186,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > iterator end() noexcept { return pimpl_->end(); }
     const_iterator end() const noexcept { return pimpl_->end(); }
     const_iterator cend() const noexcept { return pimpl_->cend(); }
@@ -198,7 +198,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > reverse_iterator rbegin() noexcept { return pimpl_->rbegin(); }
     const_reverse_iterator rbegin() const noexcept { return pimpl_->rbegin(); }
     const_reverse_iterator crbegin() const noexcept { return pimpl_->crbegin(); }
@@ -209,7 +209,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > reverse_iterator rend() noexcept { return pimpl_->rend(); }
     const_reverse_iterator rend() const noexcept { return pimpl_->rend(); }
     const_reverse_iterator crend() const noexcept { return pimpl_->crend(); }
@@ -392,6 +392,13 @@ template<typename ByteT>
 using basic_shared_mmap_sink = basic_shared_mmap<access_mode::write, ByteT>;
 
 /**
+ * This is the basis for all copy-on-write mmap objects and should be preferred over
+ * directly using basic_shared_mmap.
+ */
+template<typename ByteT>
+using basic_shared_mmap_cow_sink = basic_shared_mmap<access_mode::copy_on_write, ByteT>;
+
+/**
  * These aliases cover the most common use cases, both representing a raw byte stream
  * (either with a char or an unsigned char/uint8_t).
  */
@@ -400,6 +407,9 @@ using shared_ummap_source = basic_shared_mmap_source<unsigned char>;
 
 using shared_mmap_sink = basic_shared_mmap_sink<char>;
 using shared_ummap_sink = basic_shared_mmap_sink<unsigned char>;
+
+using shared_mmap_cow_sink = basic_shared_mmap_cow_sink<char>;
+using shared_ummap_cow_sink = basic_shared_mmap_cow_sink<unsigned char>;
 
 } // namespace mio
 

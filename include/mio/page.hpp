@@ -30,13 +30,14 @@
 namespace mio {
 
 /**
- * This is used by `basic_mmap` to determine whether to create a read-only or
- * a read-write memory mapping.
+ * This is used by `basic_mmap` to determine whether to create a read-only,
+ * a read-write or a copy-on-write memory mapping.
  */
 enum class access_mode
 {
     read,
-    write
+    write,
+    copy_on_write
 };
 
 /**

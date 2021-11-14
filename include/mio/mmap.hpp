@@ -192,7 +192,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > pointer data() noexcept { return data_; }
     const_pointer data() const noexcept { return data_; }
 
@@ -202,7 +202,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > iterator begin() noexcept { return data(); }
     const_iterator begin() const noexcept { return data(); }
     const_iterator cbegin() const noexcept { return data(); }
@@ -213,7 +213,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > iterator end() noexcept { return data() + length(); }
     const_iterator end() const noexcept { return data() + length(); }
     const_iterator cend() const noexcept { return data() + length(); }
@@ -225,7 +225,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > reverse_iterator rbegin() noexcept { return reverse_iterator(end()); }
     const_reverse_iterator rbegin() const noexcept
     { return const_reverse_iterator(end()); }
@@ -238,7 +238,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > reverse_iterator rend() noexcept { return reverse_iterator(begin()); }
     const_reverse_iterator rend() const noexcept
     { return const_reverse_iterator(begin()); }
@@ -359,7 +359,7 @@ public:
 private:
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > pointer get_mapping_start() noexcept
     {
         return !data() ? nullptr : data() - mapping_offset();
@@ -372,14 +372,15 @@ private:
 
     /**
      * The destructor syncs changes to disk if `AccessMode` is `write`, but not
-     * if it's `read`, but since the destructor cannot be templated, we need to
-     * do SFINAE in a dedicated function, where one syncs and the other is a noop.
+     * if it's `read` or `copy_on_write`, but since the destructor cannot be
+     * templated, we need to do SFINAE in a dedicated function, where one syncs
+     * and the other is a noop.
      */
     template<access_mode A = AccessMode>
     typename std::enable_if<A == access_mode::write, void>::type
     conditional_sync();
     template<access_mode A = AccessMode>
-    typename std::enable_if<A == access_mode::read, void>::type conditional_sync();
+    typename std::enable_if<A != access_mode::write, void>::type conditional_sync();
 };
 
 template<access_mode AccessMode, typename ByteT>
@@ -421,6 +422,13 @@ template<typename ByteT>
 using basic_mmap_sink = basic_mmap<access_mode::write, ByteT>;
 
 /**
+ * This is the basis for all copy-on-write mmap objects and should be preferred over
+ * directly using `basic_mmap`.
+ */
+template<typename ByteT>
+using basic_mmap_cow_sink = basic_mmap<access_mode::copy_on_write, ByteT>;
+
+/**
  * These aliases cover the most common use cases, both representing a raw byte stream
  * (either with a char or an unsigned char/uint8_t).
  */
@@ -429,6 +437,9 @@ using ummap_source = basic_mmap_source<unsigned char>;
 
 using mmap_sink = basic_mmap_sink<char>;
 using ummap_sink = basic_mmap_sink<unsigned char>;
+
+using mmap_cow_sink = basic_mmap_cow_sink<char>;
+using ummap_cow_sink = basic_mmap_cow_sink<unsigned char>;
 
 /**
  * Convenience factory method that constructs a mapping for any `basic_mmap` or
@@ -483,6 +494,27 @@ template<typename MappingToken>
 mmap_sink make_mmap_sink(const MappingToken& token, std::error_code& error)
 {
     return make_mmap_sink(token, 0, map_entire_file, error);
+}
+
+/**
+ * Convenience factory method.
+ *
+ * MappingToken may be a String (`std::string`, `std::string_view`, `const char*`,
+ * `std::filesystem::path`, `std::vector<char>`, or similar), or a
+ * `mmap_sink::handle_type`.
+ */
+template<typename MappingToken>
+mmap_cow_sink make_mmap_cow_sink(const MappingToken& token,
+        mmap_cow_sink::size_type offset, mmap_cow_sink::size_type length,
+        std::error_code& error)
+{
+    return make_mmap<mmap_cow_sink>(token, offset, length, error);
+}
+
+template<typename MappingToken>
+mmap_cow_sink make_mmap_cow_sink(const MappingToken& token, std::error_code& error)
+{
+    return make_mmap_cow_sink(token, 0, map_entire_file, error);
 }
 
 } // namespace mio

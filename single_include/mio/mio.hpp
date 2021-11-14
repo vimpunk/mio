@@ -54,13 +54,14 @@
 namespace mio {
 
 /**
- * This is used by `basic_mmap` to determine whether to create a read-only or
- * a read-write memory mapping.
+ * This is used by `basic_mmap` to determine whether to create a read-only,
+ * a read-write or a copy-on-write memory mapping.
  */
 enum class access_mode
 {
     read,
-    write
+    write,
+    copy_on_write
 };
 
 /**
@@ -271,7 +272,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > pointer data() noexcept { return data_; }
     const_pointer data() const noexcept { return data_; }
 
@@ -281,7 +282,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > iterator begin() noexcept { return data(); }
     const_iterator begin() const noexcept { return data(); }
     const_iterator cbegin() const noexcept { return data(); }
@@ -292,7 +293,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > iterator end() noexcept { return data() + length(); }
     const_iterator end() const noexcept { return data() + length(); }
     const_iterator cend() const noexcept { return data() + length(); }
@@ -304,7 +305,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > reverse_iterator rbegin() noexcept { return reverse_iterator(end()); }
     const_reverse_iterator rbegin() const noexcept
     { return const_reverse_iterator(end()); }
@@ -317,7 +318,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > reverse_iterator rend() noexcept { return reverse_iterator(begin()); }
     const_reverse_iterator rend() const noexcept
     { return const_reverse_iterator(begin()); }
@@ -438,7 +439,7 @@ public:
 private:
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > pointer get_mapping_start() noexcept
     {
         return !data() ? nullptr : data() - mapping_offset();
@@ -451,14 +452,15 @@ private:
 
     /**
      * The destructor syncs changes to disk if `AccessMode` is `write`, but not
-     * if it's `read`, but since the destructor cannot be templated, we need to
-     * do SFINAE in a dedicated function, where one syncs and the other is a noop.
+     * if it's `read` or `copy_on_write`, but since the destructor cannot be
+     * templated, we need to do SFINAE in a dedicated function, where one syncs
+     * and the other is a noop.
      */
     template<access_mode A = AccessMode>
     typename std::enable_if<A == access_mode::write, void>::type
     conditional_sync();
     template<access_mode A = AccessMode>
-    typename std::enable_if<A == access_mode::read, void>::type conditional_sync();
+    typename std::enable_if<A != access_mode::write, void>::type conditional_sync();
 };
 
 template<access_mode AccessMode, typename ByteT>
@@ -500,6 +502,13 @@ template<typename ByteT>
 using basic_mmap_sink = basic_mmap<access_mode::write, ByteT>;
 
 /**
+ * This is the basis for all copy-on-write mmap objects and should be preferred over
+ * directly using `basic_mmap`.
+ */
+template<typename ByteT>
+using basic_mmap_cow_sink = basic_mmap<access_mode::copy_on_write, ByteT>;
+
+/**
  * These aliases cover the most common use cases, both representing a raw byte stream
  * (either with a char or an unsigned char/uint8_t).
  */
@@ -508,6 +517,9 @@ using ummap_source = basic_mmap_source<unsigned char>;
 
 using mmap_sink = basic_mmap_sink<char>;
 using ummap_sink = basic_mmap_sink<unsigned char>;
+
+using mmap_cow_sink = basic_mmap_cow_sink<char>;
+using ummap_cow_sink = basic_mmap_cow_sink<unsigned char>;
 
 /**
  * Convenience factory method that constructs a mapping for any `basic_mmap` or
@@ -562,6 +574,27 @@ template<typename MappingToken>
 mmap_sink make_mmap_sink(const MappingToken& token, std::error_code& error)
 {
     return make_mmap_sink(token, 0, map_entire_file, error);
+}
+
+/**
+ * Convenience factory method.
+ *
+ * MappingToken may be a String (`std::string`, `std::string_view`, `const char*`,
+ * `std::filesystem::path`, `std::vector<char>`, or similar), or a
+ * `mmap_sink::handle_type`.
+ */
+template<typename MappingToken>
+mmap_cow_sink make_mmap_cow_sink(const MappingToken& token,
+        mmap_cow_sink::size_type offset, mmap_cow_sink::size_type length,
+        std::error_code& error)
+{
+    return make_mmap<mmap_cow_sink>(token, offset, length, error);
+}
+
+template<typename MappingToken>
+mmap_cow_sink make_mmap_cow_sink(const MappingToken& token, std::error_code& error)
+{
+    return make_mmap_cow_sink(token, 0, map_entire_file, error);
 }
 
 } // namespace mio
@@ -786,7 +819,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > pointer data() noexcept { return data_; }
     const_pointer data() const noexcept { return data_; }
 
@@ -796,7 +829,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > iterator begin() noexcept { return data(); }
     const_iterator begin() const noexcept { return data(); }
     const_iterator cbegin() const noexcept { return data(); }
@@ -807,7 +840,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > iterator end() noexcept { return data() + length(); }
     const_iterator end() const noexcept { return data() + length(); }
     const_iterator cend() const noexcept { return data() + length(); }
@@ -819,7 +852,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > reverse_iterator rbegin() noexcept { return reverse_iterator(end()); }
     const_reverse_iterator rbegin() const noexcept
     { return const_reverse_iterator(end()); }
@@ -832,7 +865,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > reverse_iterator rend() noexcept { return reverse_iterator(begin()); }
     const_reverse_iterator rend() const noexcept
     { return const_reverse_iterator(begin()); }
@@ -953,7 +986,7 @@ public:
 private:
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > pointer get_mapping_start() noexcept
     {
         return !data() ? nullptr : data() - mapping_offset();
@@ -966,14 +999,15 @@ private:
 
     /**
      * The destructor syncs changes to disk if `AccessMode` is `write`, but not
-     * if it's `read`, but since the destructor cannot be templated, we need to
-     * do SFINAE in a dedicated function, where one syncs and the other is a noop.
+     * if it's `read` or `copy_on_write`, but since the destructor cannot be
+     * templated, we need to do SFINAE in a dedicated function, where one syncs
+     * and the other is a noop.
      */
     template<access_mode A = AccessMode>
     typename std::enable_if<A == access_mode::write, void>::type
     conditional_sync();
     template<access_mode A = AccessMode>
-    typename std::enable_if<A == access_mode::read, void>::type conditional_sync();
+    typename std::enable_if<A != access_mode::write, void>::type conditional_sync();
 };
 
 template<access_mode AccessMode, typename ByteT>
@@ -1015,6 +1049,13 @@ template<typename ByteT>
 using basic_mmap_sink = basic_mmap<access_mode::write, ByteT>;
 
 /**
+ * This is the basis for all copy-on-write mmap objects and should be preferred over
+ * directly using `basic_mmap`.
+ */
+template<typename ByteT>
+using basic_mmap_cow_sink = basic_mmap<access_mode::copy_on_write, ByteT>;
+
+/**
  * These aliases cover the most common use cases, both representing a raw byte stream
  * (either with a char or an unsigned char/uint8_t).
  */
@@ -1023,6 +1064,9 @@ using ummap_source = basic_mmap_source<unsigned char>;
 
 using mmap_sink = basic_mmap_sink<char>;
 using ummap_sink = basic_mmap_sink<unsigned char>;
+
+using mmap_cow_sink = basic_mmap_cow_sink<char>;
+using ummap_cow_sink = basic_mmap_cow_sink<unsigned char>;
 
 /**
  * Convenience factory method that constructs a mapping for any `basic_mmap` or
@@ -1077,6 +1121,27 @@ template<typename MappingToken>
 mmap_sink make_mmap_sink(const MappingToken& token, std::error_code& error)
 {
     return make_mmap_sink(token, 0, map_entire_file, error);
+}
+
+/**
+ * Convenience factory method.
+ *
+ * MappingToken may be a String (`std::string`, `std::string_view`, `const char*`,
+ * `std::filesystem::path`, `std::vector<char>`, or similar), or a
+ * `mmap_sink::handle_type`.
+ */
+template<typename MappingToken>
+mmap_cow_sink make_mmap_cow_sink(const MappingToken& token,
+        mmap_cow_sink::size_type offset, mmap_cow_sink::size_type length,
+        std::error_code& error)
+{
+    return make_mmap<mmap_cow_sink>(token, offset, length, error);
+}
+
+template<typename MappingToken>
+mmap_cow_sink make_mmap_cow_sink(const MappingToken& token, std::error_code& error)
+{
+    return make_mmap_cow_sink(token, 0, map_entire_file, error);
 }
 
 } // namespace mio
@@ -1328,7 +1393,7 @@ template<
 > file_handle_type open_file_helper(const String& path, const access_mode mode)
 {
     return ::CreateFileW(s_2_ws(path).c_str(),
-            mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+            mode == access_mode::write ? GENERIC_READ | GENERIC_WRITE : GENERIC_READ,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             0,
             OPEN_EXISTING,
@@ -1343,7 +1408,7 @@ typename std::enable_if<
 >::type open_file_helper(const String& path, const access_mode mode)
 {
     return ::CreateFileW(c_str(path),
-            mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+            mode == access_mode::write ? GENERIC_READ | GENERIC_WRITE : GENERIC_READ,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             0,
             OPEN_EXISTING,
@@ -1383,7 +1448,7 @@ file_handle_type open_file(const String& path, const access_mode mode,
     const auto handle = win::open_file_helper(path, mode);
 #else // POSIX
     const auto handle = ::open(c_str(path),
-            mode == access_mode::read ? O_RDONLY : O_RDWR);
+            mode == access_mode::write ? O_RDWR : O_RDONLY);
 #endif
     if(handle == invalid_handle)
     {
@@ -1434,7 +1499,8 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
     const auto file_mapping_handle = ::CreateFileMapping(
             file_handle,
             0,
-            mode == access_mode::read ? PAGE_READONLY : PAGE_READWRITE,
+            mode == access_mode::read ? PAGE_READONLY :
+            mode == access_mode::write ? PAGE_READWRITE : PAGE_WRITECOPY,
             win::int64_high(max_file_size),
             win::int64_low(max_file_size),
             0);
@@ -1445,7 +1511,8 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
     }
     char* mapping_start = static_cast<char*>(::MapViewOfFile(
             file_mapping_handle,
-            mode == access_mode::read ? FILE_MAP_READ : FILE_MAP_WRITE,
+            mode == access_mode::read ? FILE_MAP_READ :
+            mode == access_mode::write ? FILE_MAP_WRITE : FILE_MAP_COPY,
             win::int64_high(aligned_offset),
             win::int64_low(aligned_offset),
             length_to_map));
@@ -1461,7 +1528,7 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
             0, // Don't give hint as to where to map.
             length_to_map,
             mode == access_mode::read ? PROT_READ : PROT_WRITE,
-            MAP_SHARED,
+            mode == access_mode::copy_on_write ? MAP_PRIVATE : MAP_SHARED,
             file_handle,
             aligned_offset));
     if(mapping_start == MAP_FAILED)
@@ -1732,7 +1799,7 @@ basic_mmap<AccessMode, ByteT>::conditional_sync()
 
 template<access_mode AccessMode, typename ByteT>
 template<access_mode A>
-typename std::enable_if<A == access_mode::read, void>::type
+typename std::enable_if<A != access_mode::write, void>::type
 basic_mmap<AccessMode, ByteT>::conditional_sync()
 {
     // noop
@@ -1841,7 +1908,7 @@ template<
 > file_handle_type open_file_helper(const String& path, const access_mode mode)
 {
     return ::CreateFileW(s_2_ws(path).c_str(),
-            mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+            mode == access_mode::write ? GENERIC_READ | GENERIC_WRITE : GENERIC_READ,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             0,
             OPEN_EXISTING,
@@ -1856,7 +1923,7 @@ typename std::enable_if<
 >::type open_file_helper(const String& path, const access_mode mode)
 {
     return ::CreateFileW(c_str(path),
-            mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+            mode == access_mode::write ? GENERIC_READ | GENERIC_WRITE : GENERIC_READ,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             0,
             OPEN_EXISTING,
@@ -1896,7 +1963,7 @@ file_handle_type open_file(const String& path, const access_mode mode,
     const auto handle = win::open_file_helper(path, mode);
 #else // POSIX
     const auto handle = ::open(c_str(path),
-            mode == access_mode::read ? O_RDONLY : O_RDWR);
+            mode == access_mode::write ? O_RDWR : O_RDONLY);
 #endif
     if(handle == invalid_handle)
     {
@@ -1947,7 +2014,8 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
     const auto file_mapping_handle = ::CreateFileMapping(
             file_handle,
             0,
-            mode == access_mode::read ? PAGE_READONLY : PAGE_READWRITE,
+            mode == access_mode::read ? PAGE_READONLY :
+            mode == access_mode::write ? PAGE_READWRITE : PAGE_WRITECOPY,
             win::int64_high(max_file_size),
             win::int64_low(max_file_size),
             0);
@@ -1958,7 +2026,8 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
     }
     char* mapping_start = static_cast<char*>(::MapViewOfFile(
             file_mapping_handle,
-            mode == access_mode::read ? FILE_MAP_READ : FILE_MAP_WRITE,
+            mode == access_mode::read ? FILE_MAP_READ :
+            mode == access_mode::write ? FILE_MAP_WRITE : FILE_MAP_COPY,
             win::int64_high(aligned_offset),
             win::int64_low(aligned_offset),
             length_to_map));
@@ -1974,7 +2043,7 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
             0, // Don't give hint as to where to map.
             length_to_map,
             mode == access_mode::read ? PROT_READ : PROT_WRITE,
-            MAP_SHARED,
+            mode == access_mode::copy_on_write ? MAP_PRIVATE : MAP_SHARED,
             file_handle,
             aligned_offset));
     if(mapping_start == MAP_FAILED)
@@ -2245,7 +2314,7 @@ basic_mmap<AccessMode, ByteT>::conditional_sync()
 
 template<access_mode AccessMode, typename ByteT>
 template<access_mode A>
-typename std::enable_if<A == access_mode::read, void>::type
+typename std::enable_if<A != access_mode::write, void>::type
 basic_mmap<AccessMode, ByteT>::conditional_sync()
 {
     // noop
@@ -2334,13 +2403,14 @@ bool operator>=(const basic_mmap<AccessMode, ByteT>& a,
 namespace mio {
 
 /**
- * This is used by `basic_mmap` to determine whether to create a read-only or
- * a read-write memory mapping.
+ * This is used by `basic_mmap` to determine whether to create a read-only,
+ * a read-write or a copy-on-write memory mapping.
  */
 enum class access_mode
 {
     read,
-    write
+    write,
+    copy_on_write
 };
 
 /**
@@ -2551,7 +2621,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > pointer data() noexcept { return pimpl_->data(); }
     const_pointer data() const noexcept { return pimpl_ ? pimpl_->data() : nullptr; }
 
@@ -2569,7 +2639,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > iterator end() noexcept { return pimpl_->end(); }
     const_iterator end() const noexcept { return pimpl_->end(); }
     const_iterator cend() const noexcept { return pimpl_->cend(); }
@@ -2581,7 +2651,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > reverse_iterator rbegin() noexcept { return pimpl_->rbegin(); }
     const_reverse_iterator rbegin() const noexcept { return pimpl_->rbegin(); }
     const_reverse_iterator crbegin() const noexcept { return pimpl_->crbegin(); }
@@ -2592,7 +2662,7 @@ public:
      */
     template<
         access_mode A = AccessMode,
-        typename = typename std::enable_if<A == access_mode::write>::type
+        typename = typename std::enable_if<A != access_mode::read>::type
     > reverse_iterator rend() noexcept { return pimpl_->rend(); }
     const_reverse_iterator rend() const noexcept { return pimpl_->rend(); }
     const_reverse_iterator crend() const noexcept { return pimpl_->crend(); }
@@ -2775,6 +2845,13 @@ template<typename ByteT>
 using basic_shared_mmap_sink = basic_shared_mmap<access_mode::write, ByteT>;
 
 /**
+ * This is the basis for all copy-on-write mmap objects and should be preferred over
+ * directly using basic_shared_mmap.
+ */
+template<typename ByteT>
+using basic_shared_mmap_cow_sink = basic_shared_mmap<access_mode::copy_on_write, ByteT>;
+
+/**
  * These aliases cover the most common use cases, both representing a raw byte stream
  * (either with a char or an unsigned char/uint8_t).
  */
@@ -2783,6 +2860,9 @@ using shared_ummap_source = basic_shared_mmap_source<unsigned char>;
 
 using shared_mmap_sink = basic_shared_mmap_sink<char>;
 using shared_ummap_sink = basic_shared_mmap_sink<unsigned char>;
+
+using shared_mmap_cow_sink = basic_shared_mmap_cow_sink<char>;
+using shared_ummap_cow_sink = basic_shared_mmap_cow_sink<unsigned char>;
 
 } // namespace mio
 
