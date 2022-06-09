@@ -49,7 +49,7 @@
 
 #include <charconv>
 
-std::wstring cpp2017_string2wstring(const std::string &_string)
+inline std::wstring cpp2017_string2wstring(const std::string &_string)
 {
     using convert_typeX = std::codecvt_utf8<wchar_t>;
     std::wstring_convert<convert_typeX, wchar_t> converterX;
@@ -57,7 +57,7 @@ std::wstring cpp2017_string2wstring(const std::string &_string)
     return converterX.from_bytes(_string);
 }
 
-std::string cpp2017_wstring2string(const std::wstring &_wstring)
+inline std::string cpp2017_wstring2string(const std::wstring &_wstring)
 {
     using convert_typeX = std::codecvt_utf8<wchar_t>;
     std::wstring_convert<convert_typeX, wchar_t> converterX;
