@@ -42,6 +42,160 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#if __cplusplus >= 201103L && __cplusplus <= 201703L
+inline std::wstring cpp2017_string2wstring(const std::string &_string)
+{
+    using convert_typeX = std::codecvt_utf8<wchar_t>;
+    std::wstring_convert<convert_typeX, wchar_t> converterX;
+
+    return converterX.from_bytes(_string);
+}
+
+inline std::string cpp2017_wstring2string(const std::wstring &_wstring)
+{
+    using convert_typeX = std::codecvt_utf8<wchar_t>;
+    std::wstring_convert<convert_typeX, wchar_t> converterX;
+
+    return converterX.to_bytes(_wstring);
+}
+#endif
+
+inline std::wstring string2wstring(const std::string& _string)
+{
+    ::setlocale(LC_ALL, "");
+    std::vector<wchar_t> wide_character_buffer;
+    std::size_t source_string_count = 1;
+    std::size_t found_not_ascii_count = 0;
+    for(auto begin = _string.begin(), end = _string.end(); begin != end; begin++)
+    {
+        if(static_cast<const long long>(*begin) > 0)
+        {
+            ++source_string_count;
+        }
+        else if (static_cast<const long long>(*begin) < 0)
+        {
+            ++found_not_ascii_count;
+        }
+    }
+
+    std::size_t target_wstring_count = source_string_count + (found_not_ascii_count / 2);
+
+    wide_character_buffer.resize(target_wstring_count);
+
+    #if defined(_MSC_VER)
+    std::size_t _converted_count = 0;
+    ::mbstowcs_s(&_converted_count, &wide_character_buffer[0], target_wstring_count, _string.c_str(), ((size_t)-1));
+    #else
+    ::mbstowcs(&wide_character_buffer[0], _string.c_str(), target_wstring_count);
+    #endif
+
+    std::size_t _target_wstring_size = 0;
+    for(auto begin = wide_character_buffer.begin(), end = wide_character_buffer.end(); begin != end && *begin != L'\0'; begin++)
+    {
+        ++_target_wstring_size;
+    }
+    std::wstring _wstring{ wide_character_buffer.data(),  _target_wstring_size };
+
+    #if defined(_MSC_VER)
+    if(_converted_count == 0)
+    {
+        throw std::runtime_error("The function string2wstring is not work !");
+    }
+    #endif
+
+    if(found_not_ascii_count > 0)
+    {
+        //Need Contains character('\0') then check size
+        if(((_target_wstring_size + 1) - source_string_count) != (found_not_ascii_count / 2))
+        {
+            throw std::runtime_error("The function string2wstring, An error occurs during conversion !");
+        }
+        else
+        {
+            return _wstring;
+        }
+    }
+    else
+    {
+        //Need Contains character('\0') then check size
+        if((_target_wstring_size + 1) != source_string_count)
+        {
+             throw std::runtime_error("The function string2wstring, An error occurs during conversion !");
+        }
+        else
+        {
+            return _wstring;
+        }
+    }
+
+}
+
+inline std::string wstring2string(const std::wstring& _wstring)
+{
+    ::setlocale(LC_ALL, "");
+    std::vector<char> character_buffer;
+    std::size_t source_wstring_count = 1;
+    std::size_t found_not_ascii_count = 0;
+    for(auto begin = _wstring.begin(), end = _wstring.end(); begin != end; begin++)
+    {
+        if(static_cast<const long long>(*begin) < 256)
+        {
+            ++source_wstring_count;
+        }
+        else if (static_cast<const long long>(*begin) >= 256)
+        {
+            ++found_not_ascii_count;
+        }
+    }
+    std::size_t target_string_count = source_wstring_count + found_not_ascii_count * 2;
+
+    character_buffer.resize(target_string_count);
+
+    #if defined(_MSC_VER)
+    std::size_t _converted_count = 0;
+    ::wcstombs_s(&_converted_count, &character_buffer[0], target_string_count, _wstring.c_str(), ((size_t)-1));
+    #else
+    ::wcstombs(&character_buffer[0], _wstring.c_str(), target_string_count);
+    #endif
+
+    std::size_t _target_string_size = 0;
+    for(auto begin = character_buffer.begin(), end = character_buffer.end(); begin != end && *begin != '\0'; begin++)
+    {
+        ++_target_string_size;
+    }
+    std::string _string{ character_buffer.data(),  _target_string_size };
+
+    #if defined(_MSC_VER)
+    if(_converted_count == 0)
+    {
+        throw std::runtime_error("The function wstring2string is not work !");
+    }
+    #endif
+
+    if(found_not_ascii_count > 0)
+    {
+        if(((_target_string_size + 1) - source_wstring_count) != (found_not_ascii_count * 2))
+        {
+            throw std::runtime_error("The function wstring2string, An error occurs during conversion !");
+        }
+        else
+        {
+            return _string;
+        }
+    }
+    else
+    {
+        if((_target_string_size + 1) != source_wstring_count)
+        {
+            throw std::runtime_error("The function wstring2string, An error occurs during conversion !");
+        }
+        else
+        {
+            return _string;
+        }
+    }
+}
+
 #ifndef MIO_PAGE_HEADER
 #define MIO_PAGE_HEADER
 
@@ -52,6 +206,14 @@
 #endif
 
 namespace mio {
+
+    #ifdef min
+    #undef min
+    #endif //! min
+
+    #ifdef max
+    #undef max
+    #endif //! max
 
 /**
  * This is used by `basic_mmap` to determine whether to create a read-only or
@@ -623,6 +785,8 @@ mmap_sink make_mmap_sink(const MappingToken& token, std::error_code& error)
 namespace mio {
 namespace detail {
 
+#if __cplusplus >= 201103L && __cplusplus < 202002L
+
 template<
     typename S,
     typename C = typename std::decay<S>::type,
@@ -761,6 +925,86 @@ template<
     return !path || (*path == 0);
 }
 
+#else
+
+#include <concepts>
+
+template<typename CharacterType, typename AnyType> requires std::same_as<char, CharacterType> 
+#ifdef _WIN32
+    || std::same_as<wchar_t, CharacterType>
+#endif
+struct type_helper
+{
+    static constexpr bool is_character_type()
+    {
+        if constexpr(std::is_pointer_v<AnyType>)
+        {
+            return std::same_as<CharacterType, std::remove_cvref_t<std::remove_pointer_t<std::decay_t<AnyType>>>>;
+        }
+        else if constexpr(std::is_array_v<AnyType>)
+        {
+            return std::same_as<CharacterType, std::remove_cvref_t<std::decay_t<std::remove_extent_t<AnyType>>>>;
+        }
+        else
+        {
+            return std::same_as<CharacterType, std::remove_cvref_t<std::decay_t<AnyType>>>;
+        }
+    }
+};
+
+template<typename AnyType>
+constexpr bool is_char_type = type_helper<char, AnyType>::is_character_type();
+
+#ifdef _WIN32
+template<typename AnyType>
+constexpr bool is_wchar_type = type_helper<wchar_t, AnyType>::is_character_type();
+
+template<typename AnyType>
+constexpr bool is_char_or_wchar_type = is_wchar_type<AnyType> || is_char_type<AnyType>;
+#else
+template<typename AnyType>
+constexpr bool is_char_or_wchar_type = is_char_type<AnyType>;
+#endif
+
+template<typename AnyType>
+concept have_string_function_type = requires(AnyType object)
+{
+    object.data();
+    object.c_str();
+    std::convertible_to<decltype(object.empty()), bool>;
+};
+
+template<typename AnyType>
+concept is_string_type = have_string_function_type<AnyType> && std::is_base_of_v<std::string, std::remove_cvref_t<AnyType>>;
+
+#ifdef _WIN32
+template<typename AnyType>
+concept is_wstring_type = have_string_function_type<AnyType> && std::is_base_of_v<std::wstring, std::remove_cvref_t<AnyType>>;
+
+template<typename StringType> requires is_wstring_type<StringType>
+const wchar_t* c_str(const StringType& path)
+{
+    return path.data();
+}
+#endif
+
+template<typename StringType> requires is_string_type<StringType>
+const char* c_str(const StringType& path)
+{
+    return path.data();
+}
+
+template<typename StringType> requires is_string_type<StringType>
+#ifdef _WIN32
+    || is_wstring_type<StringType>
+#endif
+bool empty(StringType path)
+{
+    return path.empty();
+}
+
+#endif // __cplusplus >= 201103L && __cplusplus < 202002L
+
 } // namespace detail
 } // namespace mio
 
@@ -794,15 +1038,39 @@ inline DWORD int64_low(int64_t n) noexcept
     return n & 0xffffffff;
 }
 
-std::wstring s_2_ws(const std::string& s)
-{
-    if (s.empty())
-        return{};
-    const auto s_length = static_cast<int>(s.length());
-    auto buf = std::vector<wchar_t>(s_length);
-    const auto wide_char_count = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), s_length, buf.data(), s_length);
-    return std::wstring(buf.data(), wide_char_count);
-}
+//std::wstring s_2_ws(const std::string& s)
+//{
+//    if (s.empty())
+//        return{};
+//
+//    const auto s_length = static_cast<int>(s.length());
+//    auto buffer = std::vector<wchar_t>(s_length);
+//    const auto wide_char_count = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), s_length, buffer.data(), s_length);
+//    if (wide_char_count == 0)
+//    {
+//        const auto error = GetLastError();
+//        DebugBreak();
+//    }
+//    return std::wstring(buffer.data(), wide_char_count);
+//}
+
+//std::string ws_2_s(const std::wstring& ws)
+//{
+//    if (ws.empty())
+//        return{};
+//
+//    const auto ws_length = static_cast<int>(ws.length());
+//    auto buffer = std::vector<char>(ws_length);
+//    const auto char_count = WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), ws_length, buffer.data(), ws_length);
+//    if (char_count == 0)
+//    {
+//        const auto error = GetLastError();
+//        DebugBreak();
+//    }
+//     return std::string(buffer.data(), char_count);
+//}
+
+#if __cplusplus >= 201103L && __cplusplus < 202002L
 
 template<
     typename String,
@@ -834,6 +1102,37 @@ typename std::enable_if<
             FILE_ATTRIBUTE_NORMAL,
             0);
 }
+
+#else
+
+template<typename StringType>
+file_handle_type open_file_helper(const StringType& path, const access_mode mode)
+{
+    if constexpr (is_string_type<StringType>)
+    {
+        std::wstring ws_path { string2wstring(path) };
+        return open_file_helper<std::wstring>(ws_path, mode);
+    }
+    if constexpr (is_wstring_type<StringType>)
+    {
+        std::wstring ws_path { std::move(path) };
+        return open_file_helper<std::wstring>(ws_path, mode);
+    }
+}
+
+template<>
+inline file_handle_type open_file_helper<std::wstring>(const std::wstring& path, const access_mode mode)
+{
+    return ::CreateFileW(c_str(path),
+            mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            0,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            0);
+}
+
+#endif // __cplusplus >= 201103L && __cplusplus < 202002L
 
 } // win
 #endif // _WIN32
