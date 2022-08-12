@@ -42,13 +42,7 @@
  * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <vector>
-#include <string>
-
 #if __cplusplus >= 201103L && __cplusplus <= 201703L
-
-#include <charconv>
-
 inline std::wstring cpp2017_string2wstring(const std::string &_string)
 {
     using convert_typeX = std::codecvt_utf8<wchar_t>;
@@ -87,8 +81,13 @@ inline std::wstring string2wstring(const std::string& _string)
     std::size_t target_wstring_count = source_string_count + (found_not_ascii_count / 2);
 
     wide_character_buffer.resize(target_wstring_count);
+
+    #if defined(_MSC_VER)
     std::size_t _converted_count = 0;
     ::mbstowcs_s(&_converted_count, &wide_character_buffer[0], target_wstring_count, _string.c_str(), ((size_t)-1));
+    #else
+    ::mbstowcs(&wide_character_buffer[0], _string.c_str(), target_wstring_count);
+    #endif
 
     std::size_t _target_wstring_size = 0;
     for(auto begin = wide_character_buffer.begin(), end = wide_character_buffer.end(); begin != end && *begin != L'\0'; begin++)
@@ -97,37 +96,38 @@ inline std::wstring string2wstring(const std::string& _string)
     }
     std::wstring _wstring{ wide_character_buffer.data(),  _target_wstring_size };
 
+    #if defined(_MSC_VER)
     if(_converted_count == 0)
     {
         throw std::runtime_error("The function string2wstring is not work !");
     }
-    else
+    #endif
+
+    if(found_not_ascii_count > 0)
     {
-        if(found_not_ascii_count > 0)
+        //Need Contains character('\0') then check size
+        if(((_target_wstring_size + 1) - source_string_count) != (found_not_ascii_count / 2))
         {
-            //Need Contains character('\0') then check size
-            if(((_target_wstring_size + 1) - source_string_count) != (found_not_ascii_count / 2))
-            {
-                throw std::runtime_error("The function string2wstring, An error occurs during conversion !");
-            }
-            else
-            {
-                return _wstring;
-            }
+            throw std::runtime_error("The function string2wstring, An error occurs during conversion !");
         }
         else
         {
-            //Need Contains character('\0') then check size
-            if((_target_wstring_size + 1) != source_string_count)
-            {
-                 throw std::runtime_error("The function string2wstring, An error occurs during conversion !");
-            }
-            else
-            {
-                return _wstring;
-            }
+            return _wstring;
         }
     }
+    else
+    {
+        //Need Contains character('\0') then check size
+        if((_target_wstring_size + 1) != source_string_count)
+        {
+             throw std::runtime_error("The function string2wstring, An error occurs during conversion !");
+        }
+        else
+        {
+            return _wstring;
+        }
+    }
+
 }
 
 inline std::string wstring2string(const std::wstring& _wstring)
@@ -147,11 +147,16 @@ inline std::string wstring2string(const std::wstring& _wstring)
             ++found_not_ascii_count;
         }
     }
-    std::size_t target_string_count = source_wstring_count + found_not_ascii_count * 2; 
+    std::size_t target_string_count = source_wstring_count + found_not_ascii_count * 2;
 
     character_buffer.resize(target_string_count);
-    ::size_t _converted_count = 0;
+
+    #if defined(_MSC_VER)
+    std::size_t _converted_count = 0;
     ::wcstombs_s(&_converted_count, &character_buffer[0], target_string_count, _wstring.c_str(), ((size_t)-1));
+    #else
+    ::wcstombs(&character_buffer[0], _wstring.c_str(), target_string_count);
+    #endif
 
     std::size_t _target_string_size = 0;
     for(auto begin = character_buffer.begin(), end = character_buffer.end(); begin != end && *begin != '\0'; begin++)
@@ -160,33 +165,33 @@ inline std::string wstring2string(const std::wstring& _wstring)
     }
     std::string _string{ character_buffer.data(),  _target_string_size };
 
+    #if defined(_MSC_VER)
     if(_converted_count == 0)
     {
         throw std::runtime_error("The function wstring2string is not work !");
     }
-    else
+    #endif
+
+    if(found_not_ascii_count > 0)
     {
-        if(found_not_ascii_count > 0)
+        if(((_target_string_size + 1) - source_wstring_count) != (found_not_ascii_count * 2))
         {
-            if(((_target_string_size + 1) - source_wstring_count) != (found_not_ascii_count * 2))
-            {
-                throw std::runtime_error("The function wstring2string, An error occurs during conversion !");
-            }
-            else
-            {
-                return _string;
-            }
+            throw std::runtime_error("The function wstring2string, An error occurs during conversion !");
         }
         else
         {
-            if((_target_string_size + 1) != source_wstring_count)
-            {
-                throw std::runtime_error("The function wstring2string, An error occurs during conversion !");
-            }
-            else
-            {
-                return _string;
-            }
+            return _string;
+        }
+    }
+    else
+    {
+        if((_target_string_size + 1) != source_wstring_count)
+        {
+            throw std::runtime_error("The function wstring2string, An error occurs during conversion !");
+        }
+        else
+        {
+            return _string;
         }
     }
 }
