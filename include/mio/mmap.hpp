@@ -97,7 +97,7 @@ private:
     // user provided it, but we must close it if we obtained it using the
     // provided path. For this reason, this flag is used to determine when to
     // close `file_handle_`.
-    bool is_handle_internal_;
+    bool is_handle_internal_{false};
 
 public:
     /**
