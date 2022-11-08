@@ -490,3 +490,5 @@ mmap_sink make_mmap_sink(const MappingToken& token, std::error_code& error)
 #include "detail/mmap.ipp"
 
 #endif // MIO_MMAP_HEADER
+
+#undef max
