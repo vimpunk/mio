@@ -127,6 +127,12 @@ if(WIN32)
   target_include_directories(mio_min_winapi INTERFACE ${prefix})
 endif()
 
+if("${CMAKE_VERSION}" VERSION_GREATER_EQUAL "3.14")
+  set(ARCH_INDEPENDENT_OUR "ARCH_INDEPENDENT")
+else()
+  set(ARCH_INDEPENDENT_OUR "")
+endif()
+
 #
 # In order to collect mio's header files in IDE tools such as XCode or Visual
 # Studio, there must exist a target adding any such header files as source files.
@@ -181,7 +187,8 @@ if(mio.installation)
 
   write_basic_package_version_file("mio-config-version.cmake"
     VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMajorVersion)
+    COMPATIBILITY SameMajorVersion
+    ${ARCH_INDEPENDENT_OUR})
 
   configure_file(
     "${PROJECT_SOURCE_DIR}/cmake/mio-config.cmake.in"
@@ -211,13 +218,18 @@ if(mio.installation)
   #
   if(NOT subproject)
     set(CPACK_PACKAGE_VENDOR "mandreyel")
+    set(CPACK_PACKAGE_CONTACT "mandreyel")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
       "Cross-platform C++11 header-only library for memory mapped file IO")
     set(CMAKE_PROJECT_HOMEPAGE_URL "https://github.com/mandreyel/mio")
+    set(CPACK_DEBIAN_PACKAGE_NAME "lib${PROJECT_NAME}-dev")
+    set(CPACK_RPM_PACKAGE_NAME "lib${PROJECT_NAME}-devel")
     set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/LICENSE")
     set(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
     set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
     set(CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
+    set(CPACK_DEBIAN_COMPRESSION_TYPE "xz")
+    set(CPACK_RPM_COMPRESSION_TYPE "xz")
     include(CPack)
   endif()
 endif()
