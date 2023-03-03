@@ -46,6 +46,12 @@
 #define MIO_PAGE_HEADER
 
 #ifdef _WIN32
+# ifndef NOMINMAX
+#  define NOMINMAX
+# endif // NOMINMAX
+# ifndef WIN32_LEAN_AND_MEAN
+#  define WIN32_LEAN_AND_MEAN
+# endif // WIN32_LEAN_AND_MEAN
 # include <windows.h>
 #else
 # include <unistd.h>
@@ -108,6 +114,9 @@ inline size_t make_offset_page_aligned(size_t offset) noexcept
 #include <cstdint>
 
 #ifdef _WIN32
+# ifndef NOMINMAX
+#  define NOMINMAX
+# endif // NOMINMAX
 # ifndef WIN32_LEAN_AND_MEAN
 #  define WIN32_LEAN_AND_MEAN
 # endif // WIN32_LEAN_AND_MEAN
@@ -1300,6 +1309,12 @@ bool operator>=(const basic_mmap<AccessMode, ByteT>& a,
 #define MIO_PAGE_HEADER
 
 #ifdef _WIN32
+# ifndef NOMINMAX
+#  define NOMINMAX
+# endif // NOMINMAX
+# ifndef WIN32_LEAN_AND_MEAN
+#  define WIN32_LEAN_AND_MEAN
+# endif // WIN32_LEAN_AND_MEAN
 # include <windows.h>
 #else
 # include <unistd.h>

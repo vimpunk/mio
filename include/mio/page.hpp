@@ -22,6 +22,12 @@
 #define MIO_PAGE_HEADER
 
 #ifdef _WIN32
+# ifndef NOMINMAX
+#  define NOMINMAX
+# endif // NOMINMAX
+# ifndef WIN32_LEAN_AND_MEAN
+#  define WIN32_LEAN_AND_MEAN
+# endif // WIN32_LEAN_AND_MEAN
 # include <windows.h>
 #else
 # include <unistd.h>
