@@ -27,6 +27,10 @@
 
 #include <algorithm>
 
+#ifdef _WIN32
+# include <vector>
+#endif
+
 #ifndef _WIN32
 # include <unistd.h>
 # include <fcntl.h>
@@ -73,7 +77,7 @@ template<
 > file_handle_type open_file_helper(const String& path, const access_mode mode)
 {
     return ::CreateFileW(s_2_ws(path).c_str(),
-            mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+            mode == access_mode::write ? GENERIC_READ | GENERIC_WRITE : GENERIC_READ,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             0,
             OPEN_EXISTING,
@@ -88,7 +92,7 @@ typename std::enable_if<
 >::type open_file_helper(const String& path, const access_mode mode)
 {
     return ::CreateFileW(c_str(path),
-            mode == access_mode::read ? GENERIC_READ : GENERIC_READ | GENERIC_WRITE,
+            mode == access_mode::write ? GENERIC_READ | GENERIC_WRITE : GENERIC_READ,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             0,
             OPEN_EXISTING,
@@ -128,7 +132,7 @@ file_handle_type open_file(const String& path, const access_mode mode,
     const auto handle = win::open_file_helper(path, mode);
 #else // POSIX
     const auto handle = ::open(c_str(path),
-            mode == access_mode::read ? O_RDONLY : O_RDWR);
+            mode == access_mode::write ? O_RDWR : O_RDONLY);
 #endif
     if(handle == invalid_handle)
     {
@@ -179,7 +183,8 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
     const auto file_mapping_handle = ::CreateFileMapping(
             file_handle,
             0,
-            mode == access_mode::read ? PAGE_READONLY : PAGE_READWRITE,
+            mode == access_mode::read ? PAGE_READONLY :
+            mode == access_mode::write ? PAGE_READWRITE : PAGE_WRITECOPY,
             win::int64_high(max_file_size),
             win::int64_low(max_file_size),
             0);
@@ -190,7 +195,8 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
     }
     char* mapping_start = static_cast<char*>(::MapViewOfFile(
             file_mapping_handle,
-            mode == access_mode::read ? FILE_MAP_READ : FILE_MAP_WRITE,
+            mode == access_mode::read ? FILE_MAP_READ :
+            mode == access_mode::write ? FILE_MAP_WRITE : FILE_MAP_COPY,
             win::int64_high(aligned_offset),
             win::int64_low(aligned_offset),
             length_to_map));
@@ -206,7 +212,7 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
             0, // Don't give hint as to where to map.
             length_to_map,
             mode == access_mode::read ? PROT_READ : PROT_WRITE,
-            MAP_SHARED,
+            mode == access_mode::copy_on_write ? MAP_PRIVATE : MAP_SHARED,
             file_handle,
             aligned_offset));
     if(mapping_start == MAP_FAILED)
@@ -477,7 +483,7 @@ basic_mmap<AccessMode, ByteT>::conditional_sync()
 
 template<access_mode AccessMode, typename ByteT>
 template<access_mode A>
-typename std::enable_if<A == access_mode::read, void>::type
+typename std::enable_if<A != access_mode::write, void>::type
 basic_mmap<AccessMode, ByteT>::conditional_sync()
 {
     // noop
