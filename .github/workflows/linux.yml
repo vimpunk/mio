@@ -1,0 +1,39 @@
+name: Linux
+
+on:
+  pull_request:
+  push:
+  release:
+    types: [published]
+
+jobs:
+  build_linux:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Debug, Release]
+        architecture: [x64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-12 g++-12
+
+      - name: Configure
+        run: |
+          export CC=gcc-12 && export CXX=g++-12
+          cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${{ matrix.configuration }}
+
+      - name: Build
+        working-directory: build
+        run: |
+          make -j$(nproc)
+
+      - name: Test
+        working-directory: build
+        run: |
+          ctest
