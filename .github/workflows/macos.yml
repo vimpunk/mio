@@ -1,0 +1,33 @@
+name: MacOS
+
+on:
+  pull_request:
+  push:
+  release:
+    types: [published]
+
+jobs:
+  build_macos:
+    runs-on: macos-12
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Debug, Release]
+        architecture: [x64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure
+        run: |
+          cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${{ matrix.configuration }}
+
+      - name: Build
+        working-directory: build
+        run: |
+          make -j$(sysctl -n hw.logicalcpu)
+
+      - name: Test
+        working-directory: build
+        run: |
+          ctest
