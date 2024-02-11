@@ -137,7 +137,7 @@ file_handle_type open_file(const String& path, const access_mode mode,
     return handle;
 }
 
-inline size_t query_file_size(file_handle_type handle, std::error_code& error)
+inline int64_t query_file_size(file_handle_type handle, std::error_code& error)
 {
     error.clear();
 #ifdef _WIN32
@@ -176,6 +176,12 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
     const int64_t length_to_map = offset - aligned_offset + length;
 #ifdef _WIN32
     const int64_t max_file_size = offset + length;
+    const SIZE_T sz_to_map = static_cast<SIZE_T>(length_to_map);
+    if (static_cast<int64_t>(sz_to_map) != length_to_map)
+    {
+        error = std::make_error_code(std::errc::invalid_argument);
+        return {};
+    }
     const auto file_mapping_handle = ::CreateFileMapping(
             file_handle,
             0,
@@ -193,7 +199,7 @@ inline mmap_context memory_map(const file_handle_type file_handle, const int64_t
             mode == access_mode::read ? FILE_MAP_READ : FILE_MAP_WRITE,
             win::int64_high(aligned_offset),
             win::int64_low(aligned_offset),
-            length_to_map));
+            sz_to_map));
     if(mapping_start == nullptr)
     {
         // Close file handle if mapping it failed.

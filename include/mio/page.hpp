@@ -66,7 +66,7 @@ inline size_t page_size()
  * difference until the nearest page boundary before `offset`, or does nothing if
  * `offset` is already page aligned.
  */
-inline size_t make_offset_page_aligned(size_t offset) noexcept
+inline int64_t make_offset_page_aligned(int64_t offset) noexcept
 {
     const size_t page_size_ = page_size();
     // Use integer division to round down to the nearest page alignment.
