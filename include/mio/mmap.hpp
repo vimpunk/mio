@@ -57,7 +57,7 @@ template<access_mode AccessMode, typename ByteT>
 struct basic_mmap
 {
     using value_type = ByteT;
-    using size_type = size_t;
+    using size_type = int64_t;
     using reference = value_type&;
     using const_reference = const value_type&;
     using pointer = value_type*;
